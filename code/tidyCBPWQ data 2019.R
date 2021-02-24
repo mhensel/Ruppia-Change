@@ -133,7 +133,7 @@ write_csv(CBP_WQ_2019.tss, "/Volumes/savshare2/Current Projects/Ruppia/Data/CBP 
 
 #write to Marcs computer (dont tell dave ;) )
 getwd()
-write_csv(CBP_WQ_2019, "../Ruppia/CBP_WQ_2019.csv")
+write_csv(CBP_WQ_2019, "../Ruppia/Ruppia-Change/data/CBP_WQ_2019.csv")
 
 
 ggplot(data = CBP_WQ_2019 %>% filter(STATION == "CB5.1")) + 
@@ -414,7 +414,7 @@ Subestuary_WQ<- Subestuary_WQ %>%
 Subestuary_WQ[Subestuary_WQ$tssx.y1 > 5.e+11, "tssx.y1"] <- 5.e+05
 
 write_csv(Subestuary_WQ, "/Volumes/savshare2/Current Projects/Ruppia/Data/Subestuary_WQ.csv")
-write_csv(Subestuary_WQ, "../Ruppia/data/Subestuary_WQ.csv")
+write_csv(Subestuary_WQ, "./data/Subestuary_WQ.csv")
 
 
 ########Connowingo Dam data########

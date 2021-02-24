@@ -63,11 +63,11 @@ r.squaredGLMM(f1)
 coT <- lm(Sal.spme ~ TSS.spme, data = RmZone_Env.TSS)
 cor(RmZone_Env.TSS:log10(Sal.spme), RmZone_Env.TSSlog10(TSS.spme))
 
-##attempted SEM####
-#SEM Notes: 
+##Generate the Rm_SEM dataset here####
+#drop NAs, filter out nonsense values
 
 Rm_SEM <- RmZone_Env %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0) #%>% filter(year > 1999)
-Rm_SEM.tss <- RmZone_Env.tss %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0) #%>% filter(year > 1999)
+Rm_SEM.tss <- RmZone_Env.tss %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0)
 
 Rm_SEM  #1455 obs
 Rm_SEM.tss #8934 obs
@@ -483,7 +483,7 @@ fisherC(RmBayLOGsp.tss.sem)
 
 AIC(RmBayLOG_03.sem, RmBayLOG.tss.sem)
 
-### BAY-WIDE STRUCTURAL EQUATION MODEL larfchunk #############################
+### BAY-WIDE STRUCTURAL EQUATION MODEL larfchunk #########
 
 # Create SEM
 station.sem <- psem(
@@ -590,7 +590,7 @@ dens.percomp.change ~ SAVArea.y1 +
 #if ptp or ptn are in the SEM, may need to filter out the 0s bc they mess up the log10(). not that many points tho
 RmSubE_SEM <- RmSubE_Env %>% drop_na() 
 %>% filter(tssx.adj < 10000000)
-RmSubE988_SEM <- RmSubE_Env982 %>% drop_na() 
+RmSubE988_SEM <- RmSubE_Env982 %>% drop_na() ##USE THIS ONE
 
 %>% filter(ptn.adj > 0) %>% filter(tssx.adj > 0) %>% filter(tssx.adj < 10000000,) %>% filter(ptp.adj > 0) %>% filter(ptn.adj > 0) %>% filter(ptn.y1 > 0) #%>% filter(year > 1999)
 #filtering the ptn takes out some data that fucked the SEM so idk whats up here. 
@@ -617,43 +617,6 @@ AIC(RmBayLOG.tss.sem, RmBayLOG_03.sem)
 
 
 ##start testing SEMS here 
-#p = .017 
-RmSubENoLog.sem <- psem(
-  tss <- lme(tssx.adj ~ flow ,
-             random = ~ 1 | SUBEST_ID,
-             correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2), 
-             data = RmSubE_SEM),
-  
-  nptp <- lme(nptp.adj ~ manurep_kg.adj + fertilizerp_kg.adj + flow,
-              random = ~ 1 | SUBEST_ID,
-              correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
-              data = RmSubE_SEM),
-  
-  nptn <- lme(nptn.adj ~ manuren_kg.adj + fertilizern_kg.adj + flow,
-              random = ~ 1 | SUBEST_ID,
-              correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
-              data = RmSubE_SEM),
-  
-  Ruchange <- lme(dens.percomp.change ~
-                    dens.percomp.y1 +
-                    flow +
-                    nptn.adj +
-                    nptp.adj +
-                    tssx.adj +
-                    dens.percomp.y1:flow +
-                    dens.percomp.y1:nptp.adj+
-                    dens.percomp.y1:nptn.adj+
-                    dens.percomp.y1:tssx.adj,
-                  random = ~ 1 | SUBEST_ID,
-                  correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
-                  data = RmSubE_SEM), 
-  manurep_kg.adj %~~% fertilizerp_kg.adj,
-  nptn.adj %~~% nptp.adj,
-  nptn.adj %~~% tssx.adj, 
-  nptp.adj %~~% tssx.adj,
-  #log10(nptn.y1) %~~% log10(manuren_kg.y1),
-  data = RmSubE_SEM)
-summary(RmSubENoLog.sem)
 
 #this unlogged doesnt fit anymore with the trimmed dataset .016
 #FYI untrimmed and y1 does not work
@@ -750,28 +713,23 @@ summary(RmSubELOGtrim.sem)
 AIC(RmSubELOGtrim.sem, RmSubELOGtrimflowx.sem)
 
 #just N fits p = .84
-#note- manure breaks all these models
+#note- manure and fertilizer breaks all these models
 RmSubELOGtrim.N.sem <-  psem(
   tss <- lme(log10(tssx.adj) ~ flow + Agro,
              random = ~ 1 | SUBEST_ID,
              correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2), 
              data = RmSubE988_SEM),
   
-  nptn <- lme(log10(nptn.adj) ~  flow ,
+  nptn <- lme(log10(nptn.adj) ~  flow + Agro ,
               random = ~ 1 | SUBEST_ID,
               correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
               data = RmSubE988_SEM),
-  #fertilizern <- lme(log10(fertilizern_kg.adj)  ~ Agro,
-   #                  random = ~ 1 | SUBEST_ID,
-   #                  correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
-   #                  data = RmSubE988_SEM),
-  
   Ruchange <- lme(dens.percomp.change ~
                     dens.percomp.y1 +
-                    #flow +
+                    flow +
                     log10(nptn.adj) +
                     log10(tssx.adj) +
-                    #dens.percomp.y1:flow +
+                    dens.percomp.y1:flow +
                     dens.percomp.y1:log10(nptn.adj)+
                     dens.percomp.y1:log10(tssx.adj),
                   random = ~ 1 | SUBEST_ID,
@@ -781,22 +739,17 @@ RmSubELOGtrim.N.sem <-  psem(
   data = RmSubE988_SEM)
 summary(RmSubELOGtrim.N.sem)
 
-#this model fits well but nptp isnt sig p = .35
+#this model fits well but nptp isnt sig p = .9
 RmSubELOGtrim.P.sem <- psem(
   tss <- lme(log10(tssx.adj) ~ flow + Agro,
              random = ~ 1 | SUBEST_ID,
              correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2), 
              data = RmSubE988_SEM),
   
-  nptp <- lme(log10(nptp.adj) ~ log10(fertilizerp_kg.adj) + flow,
+  nptp <- lme(log10(nptp.adj) ~ Agro + flow,
               random = ~ 1 | SUBEST_ID,
               correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
               data = RmSubE988_SEM),
-  fertilizerp <- lme(log10(fertilizerp_kg.adj)  ~ Agro,
-                     random = ~ 1 | SUBEST_ID,
-                     correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
-                     data = RmSubE988_SEM),
-  
   Ruchange <- lme(dens.percomp.change ~
                     dens.percomp.y1 +
                     flow +
