@@ -7,13 +7,13 @@ library(readxl); library(lubridate); library(naniar)
 ############Station Env data#########
 #load data! 
 #from Marcs computer
-load("~/Documents/R projects/Ruppia/wtemp_sal_sec_chla_to2019.rda")
+load("~/Documents/R projects/Ruppia/Ruppia-Change/data/wtemp_sal_sec_chla_to2019.rda")
 #from the R drive
 load("/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/wtemp_sal_sec_chla_to2019.rda")
 # data1  contains fairly self-explanatory columns including DATE, STATION, PARAMETER and VALUE. The only processing I did of this set from the data hub was to average duplicates and remove a couple erroneous values
 
 #from Marcs computer
-load("~/Documents/R projects/Ruppia/tn_tp_tss_to2019.rda")
+load("~/Documents/R projects/Ruppia/Ruppia-Change/data/tn_tp_tss_to2019.rda")
 #from the R drive
 load("/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/tn_tp_tss_to2019.rda")
 #has a dataframe called data2. This has fewer columns than the other because I pulled this from already processed data sets. Duplicates are averaged also.There are some cases of values reported at <DL or a range due to the components being <DL. Those will be reported here in the middle of the range (or ½ DL). Also, you’ll see the RAW_VALUE and FINAL_VALUE columns. FINAL_VALUE has the adjustments I mentioned in my email below – some data values cut-out, some adjusted due to method changes. All units of these parameters are mg/L. I recommend you use FINAL_VALUE column
@@ -58,7 +58,7 @@ CBPtss <- CBPstationNPSS %>%
   mutate(TSSr= case_when(PARAMETER == "tss" ~ RAW_VALUE)) %>%
   mutate(TSS= case_when(PARAMETER == "tss" ~ FINAL_VALUE)) %>%
   select(-PARAMETER, -DATE, -LAYER, -FINAL_VALUE, -RAW_VALUE, -LAYER, -DATE) #%>%
-  #filter(TSS > 0, TSSr >0)  #about 20 TSS were negative. use this line and you go to 38593 points (lots of NAs too)
+  #drop_na() #about 20 TSS were negative. use this line and you go to 38593 points (lots of NAs too)
 
 #using the next dataset now. these ones have a DEPTH column that needs to be averaged over
 CBPwtemp <- CBPstationWTSSC %>%
@@ -133,7 +133,8 @@ write_csv(CBP_WQ_2019.tss, "/Volumes/savshare2/Current Projects/Ruppia/Data/CBP 
 
 #write to Marcs computer (dont tell dave ;) )
 getwd()
-write_csv(CBP_WQ_2019, "../Ruppia/Ruppia-Change/data/CBP_WQ_2019.csv")
+write_csv(CBP_WQ_2019, "./CBP_WQ_2019.csv")
+write_csv(CBP_WQ_2019.tss, "./CBP_WQ_2019.tss.csv")
 
 
 ggplot(data = CBP_WQ_2019 %>% filter(STATION == "CB5.1")) + 
@@ -154,6 +155,9 @@ ggplot(data = CBP_WQ_2019 %>% filter(STATION == "CB5.1")) +
 #NOTE ON TSS: the code to create the TSS dataset is in there but hashtagged out. that file is in the folders too. 
 
 #calculate yearly max and mins and means and range. also calculate D change max min mean
+CBP_WQ_2019 <- read.csv("data/CBP_WQ_2019.csv")
+CBP_WQ_2019.tss <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/CBP_WQ_2019.tss.csv")
+
 Env_Var_year.CBP_WQ <- CBP_WQ_2019 %>%
   # na.omit() %>%
   group_by(year, STATION, LATITUDE, LONGITUDE, CBSEG_2003) %>% 
@@ -170,7 +174,7 @@ Env_Var_year.CBP_WQ <- CBP_WQ_2019 %>%
             #TSS.Dpos = max(TSS.D, na.rm = T), TSS.Dneg = min(TSS.D, na.rm = T), TSS.Dme = mean(TSS.D, na.rm = T))
          
 
-write_csv(Env_Var_year.CBP_WQ, "../Ruppia/Env_Var_year.CBP_WQ.csv") 
+#write_csv(Env_Var_year.CBP_WQ, "../Ruppia/Env_Var_year.CBP_WQ.csv") 
 
 #calculate y-1 yearly
 Env_Var_yearly <- Env_Var_year.CBP_WQ %>% group_by(STATION) %>%
@@ -273,11 +277,11 @@ is.na(Env_Var_nosumy1sp.CBP_WQ) <- Env_Var_nosumy1sp.CBP_WQ == "-Inf"
 colSums(is.na(Env_Var_ALL.CBP_WQ))
 colSums(is.na(Env_Var_nosumy1sp.CBP_WQ))
 
-write_csv(Env_Var_ALL.CBP_WQ, "/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/Env_Var_ALL.CBP_WQ.csv")
-write_csv(Env_Var_ALL.CBP_WQ, "../Ruppia/Env_Var_ALL.CBP_WQ.csv")
+#write_csv(Env_Var_ALL.CBP_WQ, "/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/Env_Var_ALL.CBP_WQ.csv")
+#write_csv(Env_Var_ALL.CBP_WQ, "../Ruppia/Env_Var_ALL.CBP_WQ.csv")
 
 write_csv(Env_Var_nosumy1sp.CBP_WQ, "/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/Env_Var_nosumy1sp.CBP_WQ.csv")
-write_csv(Env_Var_nosumy1sp.CBP_WQ, "../Ruppia/Env_Var.TSS_nosumy1sp.CBP_WQ.csv")
+write_csv(Env_Var_nosumy1sp.CBP_WQ, "./data/Env_Var_nosumy1sp.CBP_WQ.csv")
 
 Env_Var_nosumy1sp.CBP_WQ
 
@@ -351,9 +355,25 @@ write_csv(Env_Var.tss, "/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ S
 Env_Var_nosumy1sp.CBP_WQ.tss <- full_join(Env_Var_nosumy1sp.CBP_WQ, Env_Var.tss)
 
 write_csv(Env_Var_nosumy1sp.CBP_WQ.tss, "/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/Env_Var_nosumy1sp.CBP_WQ.tss.csv")
-write_csv(Env_Var_nosumy1sp.CBP_WQ.tss, "../Ruppia/Env_Var_nosumy1sp.CBP_WQ.tss.tss.csv")
+write_csv(Env_Var_nosumy1sp.CBP_WQ.tss, "./Env_Var_nosumy1sp.CBP_WQ.tss.csv")
 
-write_csv(Env_Var_nosumy1sp.CBP_WQ.tss, "./_data/Baywide SAV/WaterQual_CBP2019.csv")
+write_csv(Env_Var_nosumy1sp.CBP_WQ.tss, "./Users/mhensel/Documents/_data/RuppiaV/WaterQual_CBP2019.csv")
+
+
+
+
+####Calc Spring mean data only#####
+spme_CBPWQ <- CBP_WQ_2019.tss %>% 
+  filter(between(month, 3, 5)) %>%
+  group_by(year, STATION, LATITUDE, LONGITUDE, CBSEG_2003) %>% 
+  summarise(TSSr.spme = mean(TSSr, na.rm = T),ChlA.spme = mean(CHLA, na.rm = T), Secc.spme = mean(SECCHI, na.rm = T), Sal.spme = mean(SALINITY, na.rm = T), Temp.spme = mean(WTEMP, na.rm = T), TP.spme = mean(TP, na.rm = T), TN.spme = mean(TN, na.rm = T))
+
+is.na(spme_CBPWQ) <- spme_CBPWQ == "NaN"
+is.na(spme_CBPWQ) <- spme_CBPWQ == "Inf"
+is.na(spme_CBPWQ) <- spme_CBPWQ == "-Inf"
+
+write_csv(spme_CBPWQ, "/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/spme_CBPWQ.csv")
+write_csv(spme_CBPWQ, "./spme_CBPWQ.csv")
 
 #
 ##
@@ -365,9 +385,9 @@ write_csv(Env_Var_nosumy1sp.CBP_WQ.tss, "./_data/Baywide SAV/WaterQual_CBP2019.c
 ##
 #
 
-SubEs_Env <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/subestEnv15.csv") #this has only flow and N/P up until 2015, no 13/14 for manure and others
+SubEs_Env <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/Subestuary WQ data/subestEnv15.csv") #this has only flow and N/P up until 2015, no 13/14 for manure and others
 
-restime.SubE <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/residence_time.subest.2csv.csv")
+restime.SubE <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/Subestuary WQ data/residence_time.subest.2csv.csv")
 
 #clean this up and merge with the restime document 
 SubEs_flowmerge <- full_join(SubEs_Env, restime.SubE, by = c("SUBEST_ID")) %>%
@@ -388,7 +408,7 @@ SubEs_flowmerge <- full_join(SubEs_Env, restime.SubE, by = c("SUBEST_ID")) %>%
   #select(flow, nptn, nptp, ptn, tssx, manuren_kg, manurep_kg, fertilizern_kg, fertilizerp_kg, log10.flow, log10.tssx, log10.nptp, log10.nptp, log10.ptn, log10.ptp, log10.manureN, log10.manureP, log10.fertilizerN, log10.fertilizerP) %>% na.omit() %>%
   
 #adjusted load formula applied here. the y1 variables are made from adjusted load, i didnt do the .adj tho. kinda annoying i suppose 
-Subestuary_WQ <- SubEs_flowmerge %>% 
+Subestuary_WQA <- SubEs_flowmerge %>% 
   select(-log10.flow, -log10.fertilizerN, -log10.tssx, -log10.fertilizerP, -log10.nptp, -log10.nptn, -log10.WatershedHa, -log10.ptn, -log10.ptp, -log10.manureN, -log10.manureP) %>% 
   group_by(SUBEST_ID, Year) %>%
   mutate(Vol.km3 = VOLUMm3/1000000000, #km data rounds dwn to 0
@@ -406,56 +426,15 @@ Subestuary_WQ <- SubEs_flowmerge %>%
 
 Subestuary_WQ[Subestuary_WQ$tssx.adj > 5.e+11, "tssx.adj"] <- 5.e+05
 
-Subestuary_WQ<- Subestuary_WQ %>%
+mutate(TN= case_when(PARAMETER == "tn" ~ FINAL_VALUE))
+
+Subestuary_WQ<- Subestuary_WQA %>% mutate(tssx.adj = replace(tssx.adj, tssx.adj > 9000, 8000)) %>%
   mutate(nptn.y1 = lag(nptn.adj), nptp.y1 = lag(nptp.adj), ptn.y1 = lag(ptn.adj), ptp.y1 = lag(ptp.adj), tssx.y1 = lag(tssx.adj), manuren_kg.y1 = lag(manuren_kg.adj), manurep_kg.y1 = lag(manurep_kg.adj), fertilizern_kg.y1 = lag(fertilizern_kg.adj), fertilizerp_kg.y1 = lag(fertilizerp_kg.adj), Developed.y1 = lag(Developed), Agro.y1 = lag(Agro), flow.y1 = lag(flow))
 
 ##there are a couple tss.x outliers that need fixing
 
-Subestuary_WQ[Subestuary_WQ$tssx.y1 > 5.e+11, "tssx.y1"] <- 5.e+05
 
-write_csv(Subestuary_WQ, "/Volumes/savshare2/Current Projects/Ruppia/Data/Subestuary_WQ.csv")
+write_csv(Subestuary_WQ, "/Volumes/savshare2/Current Projects/Ruppia/Data/Subestuary WQ data/Subestuary_WQ.csv")
 write_csv(Subestuary_WQ, "./data/Subestuary_WQ.csv")
 
 
-########Connowingo Dam data########
-connodisc <- read.csv("../Ruppia/data/conno_discharge.csv")
-
-conno_monthly <- 
-  ggplot(data = connodisc) + 
-  stat_summary(aes(x = year_nu, y = discharge_cufs, group = month_nu, color = month_nu), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .9) +
-  stat_summary(aes(x = year_nu, y = discharge_cufs), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = 1.5, color = "black") +
-  #geom_smooth(aes(x = year, y = dens.percomp.change, group = STATION, color = STATION), method = "lm", alpha = 0.5, size = .5) +
-  theme_bw(base_size=20) + 
-  ylab("Mean discharge") + xlab("") +
-  scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right")
-
-conno_Spmonthly <- 
-  ggplot(data = connodisc %>% filter(between(month_nu, 3, 5))) + 
-  stat_summary(aes(x = year_nu, y = discharge_cufs), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "black") +
-  stat_summary(aes(x = year_nu, y = discharge_cufs), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = 1.5, color = "black") +
-  #geom_smooth(aes(x = year, y = dens.percomp.change, group = STATION, color = STATION), method = "lm", alpha = 0.5, size = .5) +
-  theme_bw(base_size=20) + 
-  ylab("Mean Spring discharge") + xlab("") +
-  scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
-
-conno_Wimonthly <- 
-  ggplot(data = connodisc %>% filter(month_nu %in% c(1,2,10,11,12))) + 
-  stat_summary(aes(x = year_nu, y = discharge_cufs, group = month_nu, color = month_nu), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .9) +
-  stat_summary(aes(x = year_nu, y = discharge_cufs), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = 1.5, color = "black") +
-  #geom_smooth(aes(x = year, y = dens.percomp.change, group = STATION, color = STATION), method = "lm", alpha = 0.5, size = .5) +
-  theme_bw(base_size=20) + 
-  ylab("Mean Winter discharge") + xlab("") +
-  scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right")
-
-
-
-
-
-
-
-
-           
-  
