@@ -1,0 +1,141 @@
+---
+title: "Ruppia-change"
+author: "Marc Hensel"
+date: "3/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r, load packages}
+library(tidyverse); library(readxl); library(patchwork);library(beyonce)
+library(randomForest); library(leaps); library(lme4)
+library(MuMIn); library(DHARMa); library(piecewiseSEM); library(nlme); library(semPlot)
+```
+
+```{r, load in data from R drive}
+#Baywide SAV cover, Ru Zo in here as well. 
+SAV <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/BaywideSAV_RuZo.csv")
+#SEM dataset, Rm_Env w NAs removed 
+#Stations
+Rm_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/Rm_SEM.csv")
+#Subestuaries
+RmSubE988_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE988_SEM.csv")
+#Flow data
+
+
+```
+
+```{r, Fig 1a Baewide SAV change,echo=F}
+
+baywideRuZoSAV <- 
+  ggplot(data = SAV, aes(x = Year, y = Hectares)) + 
+  stat_summary(data = SAV %>% filter(Zone == "Baywide"), aes(x = Year, y = Hectares), color = "black", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
+  #stat_summary(data = baywidetotals %>% filter(Zone == "Mesohaline"), aes(x = Year, y = Hectares), color = "red", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 1.5) +
+  stat_summary(data = SAV, aes(x = year, y = meanRu), color = "green", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
+  stat_summary(data = SAV, aes(x = Year, y = meanZo), color = "blue", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 1.5) +
+  scale_x_continuous(n.breaks = 10) +
+  ylab("SAV Area (HA/Yr)") +
+  theme_bw(base_size=30)  +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right", legend.title = element_blank())
+baywideRuZoSAV
+```
+
+```{r, Fig 1b Proportional SAV change,echo=F}
+
+PropBay <- 
+  ggplot(data = SAV) + 
+  stat_summary(aes(x = Year, y = perBayZo),color = "blue", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
+  stat_summary(aes(x = Year, y = perBayRu), color = "green", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2)+
+  scale_colour_manual(labels = (c("Ruppia", "Zostera")), values=c("green", "blue")) +
+  scale_x_continuous(n.breaks = 10) + 
+  #ylim(0, .6)+
+  ylab("Proportion of Baywide SAV Area") +
+  theme_bw(base_size=30)  +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "right", legend.title = element_blank())
+PropBay
+```
+
+
+```{r, plot density change over time, echo=F}
+  ggplot(data = Rm_SEM) + 
+  stat_summary(aes(x = year, y = dens.percomp.change), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "black") +
+  stat_summary(aes(x = year, y = dens.percomp.change), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = 1.5, color = "black") +
+  #geom_smooth(aes(x = year, y = dens.percomp.change, group = STATION, color = STATION), method = "lm", alpha = 0.5, size = .5) +
+  geom_hline(yintercept = 0, color = "red") +
+  ylim(-.3, .3) +
+  theme_bw(base_size=20) + 
+  ylab("Ruppia change") + 
+  scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
+```
+
+```{r, Fig 2 stats Stations SEM}
+
+RmBayLOG.sem <- psem(
+  ChlAsp <- lme(log10(ChlA.spme) ~
+                  log10(TP.spme) +
+                  log10(TN.spme),
+                random = ~ 1 | STATION,
+                correlation = corARMA(form = ~ 1 | STATION, q = 1),
+                control = lmeControl(opt = "optim"),
+                data = Rm_SEM),
+  Seccsp <- lme(log10(Secc.spme) ~
+                  log10(ChlA.spme) +
+                  #log10(Sal.spme) +
+                  log10(TN.spme) +
+                  log10(TP.spme),
+                random = ~ 1 | STATION,
+                correlation = corARMA(form = ~ 1 | STATION, q = 1),
+                control = lmeControl(opt = "optim"),
+                data = Rm_SEM),
+  RuInt <- lme(dens.percomp.change ~
+                 dens.percomp.y1 +
+                 log10(Sal.spme) + 
+                 log10(ChlA.spme) + 
+                 log10(TP.spme) +
+                 log10(TN.spme) + 
+                 log10(Secc.spme) +
+                 (dens.percomp.y1:log10(Sal.spme)) + 
+                 (dens.percomp.y1:log10(ChlA.spme)) + 
+                 (log10(TP.spme):dens.percomp.y1) +
+                 (log10(TN.spme):dens.percomp.y1) +
+                 (log10(Secc.spme):dens.percomp.y1),
+               random = ~ 1 | STATION,
+               correlation = corARMA(form = ~ 1 | STATION, q = 1),
+               control = lmeControl(opt = "optim"),
+               data = Rm_SEM),
+  log10(TN.spme) %~~% log10(TP.spme),
+  log10(Secc.spme) %~~% log10(Sal.spme),
+  log10(ChlA.spme) %~~% log10(Sal.spme),
+  #log10(TP.spme) %~~% log10(Sal.spme),
+  #log10(TN.spme) %~~% log10(Sal.spme),
+  data = Rm_SEM)
+
+summary(RmBayLOG.sem)
+
+```
+
