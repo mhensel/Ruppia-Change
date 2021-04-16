@@ -17,7 +17,7 @@ library(MuMIn); library(DHARMa); library(piecewiseSEM); library(nlme)
 #this is all the stations, with % of it in the Rm_Zone and a composite max HA variable which I will use to create a maximum density weighted area composite (denscomp.max). as of now 11/11/20, its just area * .85 but dave is going to get a more accurate number
 RuppiaOverlap_StationZone <- read_excel("/Volumes/savshare2/Current Projects/Ruppia/Ruppia areas in Chesapeake Bay/Ruppia SAV Zones Overlap with Station Zones.xlsx")
 
-#Use this to filter out the station zones that arent in the RM_Zone and calculate the maximum composite area in any given year (denscomp.max)
+#Use this to filter out the station zones that arent in the RM_Zone and calculate the maximum composite area in any given year (denscomp.max). This gives max area of each density class in each station
 RuppiaStations <- RuppiaOverlap_StationZone %>% 
   dplyr::filter(RMZoneSAV_HA > 0) %>%
   mutate(denscomp.max = (RMZoneD4_Ha*.85) + (RMZoneD3_Ha*.55) + (RMZoneD2_Ha*.25) + (RMZoneD1_Ha*.05)) %>%

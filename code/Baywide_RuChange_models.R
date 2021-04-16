@@ -7,6 +7,8 @@ library(tidyverse); library(readxl); library(patchwork);library(beyonce)
 library(randomForest); library(leaps); library(lme4)
 library(MuMIn); library(DHARMa); library(piecewiseSEM); library(nlme)
 
+#CAN SKIP THIS first 200 lines to step 3, IF YOU RUN merge Ruppia Env.R after tidyCBPWQ data 2019.R
+
 #
 ##
 ###
@@ -57,11 +59,15 @@ RmZoneStations <- SAVyear_StationZone %>%
 
 #if you want to rewrite, go for it.
 write_csv(RmZoneStations, "/Volumes/savshare2/Current Projects/Ruppia/Data/RmZoneStations.csv")
-write_csv(RmZoneStations, "../Ruppia/RmZoneStations.csv")
+write_csv(RmZoneStations, "../data/RmZoneStations.csv")
 
 
 ############Part 2: Merging Station Zone with Environmental Data#######
 #load in the CBP data, updated to 2019 as of October 2020. this file comes from Ruppia/Data/CBP WQ Station data/tidyCBPWQ data 2019.R
+
+
+
+
 
 #NOTE: this is a little TOO much data, so the one below is going to be used instead of this. But can load it anyways
 Env_Var_ALL.CBP_WQ<- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/Env_Var_ALL.CBP_WQ.csv")
@@ -100,7 +106,7 @@ is.na(RmZone_Env) <- RmZone_Env == "Inf"
 is.na(RmZone_Env) <- RmZone_Env == "-Inf"
 RmZone_Env <- as.data.frame(RmZone_Env)
 
-write_csv(RmZone_Env, "/Volumes/savshare2/Current Projects/Ruppia/Data/RmZone_Env.csv")
+write_csv(RmZone_Env, "/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmZone_Env.csv")
 
 #if u wanna look at just the data in the segments. this has y and y1 for both summer and spring variables 
 RmZone_Env_yearly <- Env_Var_yearly %>%
@@ -165,8 +171,8 @@ Env_Var_nosumy1sp.CBP_WQ.tss <- full_join(Env_Var_nosumy1sp.CBP_WQ, Env_Var.tss)
 ####MASTER ENV AND BAYWIDE DATASET with TSS RmZone_Env.tss ####
 RmZone_EnvUNFILT <- Env_Var_nosumy1sp.CBP_WQ.tss %>%
   filter(STATION %in% RuppiaStations$STATION) %>%
-  full_join(RmZoneStations) #%>%
-#filter(denscomp.max > 5) #this gets rid of any zones that are really tiny. about 200 data points less. originally i thought this would clean things up but it actually weakens the SEM? idk about for these graphs
+  full_join(RmZoneStations) %>%
+filter(denscomp.max > 5) #this gets rid of any zones that are really tiny. about 200 data points less. originally i thought this would clean things up but it actually weakens the SEM? idk about for these graphs
 
 #is.nan.data.frame <- function(x)
 #  do.call(cbind, lapply(x, is.nan))
@@ -189,8 +195,6 @@ RmZone_EnvFILT <- RmZone_EnvUNFILT %>% #group_by(STATION, year) %>%
 RmZone_Env.tss <- bind_rows(RmZone_Env1999, RmZone_EnvFILT)
 
 write_csv(RmZone_Env.tss, "/Volumes/savshare2/Current Projects/Ruppia/Data/RmZone_Env.tss.csv")
-
-
 
 ####Our USE dataframes are these babies below. 1/15/21#####
 #trimmed the tails, so that stations close to their max or min dont skew the data
@@ -227,10 +231,23 @@ RmZone_Env_Dec.tss #decreases in RM Zone and filtered USE Env data, tails filter
 RmZone_Env_Dec.tail.tss #dec in RM Zone and filtered USE Env data, bottom tail filtered
 
 
+
+
+
+##
+###
+####
+####################START HERE NOW! 3/1/21#########
+####
+###
+##
+
+RmZone_spmeEnv.tss <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmZone_spmeEnv.tss.csv")
+
 #Original Workflow: take these babies and go over to Baywide Ruppia RFs.R, and run some random forests. Then come back to the below Part 3
 
 ######Part 3: Correlations and Exploratory Station Zone Figures#######
-Rudenstime <- qplot(x = year, y = dens.weight.mean, data = RmZone_Env8515) + 
+Rudenstime <- qplot(x = year, y = dens.weight.mean, data = RmZone_Env8515.tss) + 
   #stat_summary(fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .6, color = "black") +
   stat_summary(fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 1.5) +
   ylab("Density weighted area/year") +
@@ -239,7 +256,7 @@ Rudenstime <- qplot(x = year, y = dens.weight.mean, data = RmZone_Env8515) +
         panel.grid.minor = element_blank(), 
         legend.position = "")
 
-RudensSTATIONtime <-qplot(x = year, y = dens.weight.mean, data = RmZone_Env8515) + 
+RudensSTATIONtime <-qplot(x = year, y = dens.weight.mean, data = RmZone_Env8515.tss) + 
   #stat_summary(fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .6, color = "black") +
   stat_summary(aes(color = STATION), fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 1.5) +
   ylab("Density weighted area/year") +
@@ -257,7 +274,7 @@ ggplot(data = RmZone_Env8515.tss) +
         panel.grid.minor = element_blank(), 
         legend.position = "right")
 
-ggplot(data = RmSubE_Env982) + 
+ggplot(data = RmSubE_Env982.tss) + 
   stat_summary(aes(x = dens.percomp, y = dens.percomp.change, color = dens.percomp.y1), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .6) +
   ylab("Density weighted area mean change/year") +
   theme_bw(base_size=14) +
@@ -266,15 +283,15 @@ ggplot(data = RmSubE_Env982) +
         legend.position = "right")
 
 #density change over time
-meanchange <- qplot(x = year, y = dens.change, color = STATION, data = RmZone_Env8515) + 
+meanchange <- qplot(x = year, y = dens.change, color = STATION, data = RmZone_Env8515.tss) + 
   stat_summary(fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .6, color = "black") +
   ylab("Density weighted area mean change/year") +
   theme_bw(base_size=14) +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), 
-        legend.position = "right")
+        legend.position = "")
 
-propchange <- qplot(x = year, y = dens.prop.change, color = STATION, data = RmZone_Env8515) + 
+propchange <- qplot(x = year, y = dens.prop.change, color = STATION, data = RmZone_Env8515.tss) + 
   stat_summary(fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .6, color = "black") +
   ylab("Prop dens weight area change/year") +
   theme_bw(base_size=14) +
@@ -284,24 +301,26 @@ propchange <- qplot(x = year, y = dens.prop.change, color = STATION, data = RmZo
 
 ####mean maxcomp change over time####
 meancompchange <- 
-  ggplot(data = RmZone_Env8515) + 
+  ggplot(data = Rm_SEM) + 
   stat_summary(aes(x = year, y = dens.percomp.change), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "black") +
   stat_summary(aes(x = year, y = dens.percomp.change), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = 1.5, color = "black") +
   #geom_smooth(aes(x = year, y = dens.percomp.change, group = STATION, color = STATION), method = "lm", alpha = 0.5, size = .5) +
   geom_hline(yintercept = 0, color = "red") +
+  ylim(-.3, .3) +
   theme_bw(base_size=20) + 
   ylab("Ruppia change") + 
   scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
 
+
 densweightmeTime <- 
-ggplot(data = RmZone_Env8515) + 
+ggplot(data = RmZone_Env9010.tss) + 
   #geom_point(aes(x = year, y = dens.percomp.change), color = "black", alpha = 0.5, size = 1.5) +
   stat_summary(aes(x = year, y = dens.weight.mean), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "black") +
   stat_summary(aes(x = year, y = dens.weight.mean), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = 1.5, color = "black") +
   # geom_hline(yintercept = 0, color = "red") +
   theme_bw(base_size=20) + 
-  ylab("Ruppia change") + 
+  ylab("Ruppia DWM (HA/Zone)") + 
   scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
         legend.position = "")
@@ -323,7 +342,7 @@ cor <- rcorr(as.matrix(RmZone_Env8515 %>% drop_na))
 cor(RmZone_Env8515$Sal.me, RmZone_Env8515$Sal.Dneg)
 
 ##correlation plots ####
-qplot(y = Secc.sumy1me, x = ChlA.y1me, color = year, data = RmZone_Env8515%>% drop_na() )
+qplot(y = Secc.sumy1me, x = ChlA.y1me, color = year, data = RmZone_Env8515.tss%>% drop_na() )
 
 qplot(y = Temp.y1me, x = log(ChlA.me), color = STATION, data = RmZone_Env8515%>% drop_na() ) +
   theme_bw(base_size=14) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), legend.position = "")
@@ -331,13 +350,13 @@ qplot(y = Temp.y1me, x = log(ChlA.me), color = STATION, data = RmZone_Env8515%>%
 qplot(y = Sal.y1ran, x = Sal.sumy1ran, color = year, data = RmZone_Env8515%>% drop_na() ) +
   theme_bw(base_size=14) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), legend.position = "")
 
-qplot(y = Secc.me, x = ChlA.me, color = year, data = RmZone_Env8515%>% drop_na() ) +
+qplot(y = log10(TSSr.spme), x = log10(ChlA.spme), color = year, data = Rm_SEMspme.tss%>% drop_na() ) +
   theme_bw(base_size=14) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), legend.position = "")
 
 qplot(y = TP.spme, x = TP.spmax, color = STATION, data = RmZone_Env8515%>% drop_na() ) +
   theme_bw(base_size=14) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), legend.position = "")
 
-qplot(y = TN.me, x = TP.me, color = year, data = RmZone_Env8515%>% drop_na() ) +
+qplot(y = log10(TN.spme), x = log10(TP.spme), color = dens.percomp.change, data = Rm_SEM%>% drop_na() ) +
   theme_bw(base_size=14) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), legend.position = "")
 
 ggplot(data = RmZone_Env8515 %>% drop_na() ) + 
@@ -358,7 +377,7 @@ qplot(y = dens.permax.change, x = Sal.y1Dpos, color = STATION, data = RmZone_Env
 #ChlA.me (log or not log) ChlAme is pretty good. ChlA sp ran, spDme also solid predictors
 #permax looks better than percomp. but can switch if needed 
 logchladens <-
-ggplot(data = RmZone_Env8515 ) + 
+ggplot(data = RmZone_Env8515.tss ) + 
   geom_smooth(method = "lm", aes(x = log10(ChlA.me), y = dens.percomp.change)) +
   geom_point(aes(x = log10(ChlA.me), y = dens.percomp.change, color = year)) +
   theme_bw(base_size=14) +
@@ -366,7 +385,7 @@ ggplot(data = RmZone_Env8515 ) +
         legend.position = "")
 
 logchlaspmedens <- 
-  ggplot(data = RmZone_Env8515 ) + 
+  ggplot(data = Rm_SEMspme8515.tss ) + 
   geom_smooth(method = "lm", aes(x = log10(ChlA.spme), y = dens.percomp.change)) +
   geom_point(aes(x = log10(ChlA.spme), y = dens.percomp.change, color = year)) +
   theme_bw(base_size=14) +
@@ -380,9 +399,9 @@ chladens <-
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
         legend.position = "")
 chlaspmedens <- 
-  ggplot(data = RmZone_Env8515 ) + 
-  geom_smooth(method = "lm", aes(x = ChlA.spme, y = dens.percomp.change), color = "green") +
-  geom_point(aes(x = ChlA.spme, y = dens.percomp.change), color = "green") +
+  ggplot(data = RmZone_spmeEnv8515.tss ) + 
+  geom_smooth(method = "lm", aes(x = log10(ChlA.spme), y = dens.percomp.change), color = "black") +
+  geom_point(aes(x = log10(ChlA.spme), y = dens.percomp.change), color = "green") +
   theme_bw(base_size=14) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
         legend.position = "")
@@ -400,6 +419,9 @@ chladens + chlaspmedens
 chlaDnegdens
 
 
+
+
+
 ###SALINITY plots####
 Salmedens <- 
 ggplot(data = RmZone_Env8515) +# %>% filter(year > 1990)) + #%>% drop_na() ) + 
@@ -410,7 +432,7 @@ ggplot(data = RmZone_Env8515) +# %>% filter(year > 1990)) + #%>% drop_na() ) +
         legend.position = "right")
 #Sal.sp me
 Salspmedens <- 
-  ggplot(data = RmZone_Env8515) + # %>% filter(year > 1991)) + #%>% drop_na() ) + 
+  ggplot(data = RmZone_spmeEnv8515.tss) + # %>% filter(year > 1991)) + #%>% drop_na() ) + 
   geom_smooth(method = "lm", aes(x = Sal.spme, y = dens.percomp.change)) +
   geom_point(aes(x = Sal.spme, y = dens.percomp.change), color = "blue") +
   theme_bw(base_size=14) +
@@ -530,7 +552,7 @@ ggplot(data = RmZone_Env_Inc %>% filter(year > 2000)) +
 
 #TN plots####
 TNmedens2K <- 
-ggplot(data = RmZone_Env9010 %>% filter(year > 2000)) + 
+ggplot(data = RmZone_Env9010.tss %>% filter(year > 2000)) + 
   #geom_smooth(method = "lm", aes(x = TN.me, y = dens.permax.change)) +
   geom_point(aes(x = TN.me, y = dens.percomp.change, color = year)) +
   theme_bw(base_size=14) +
@@ -538,9 +560,17 @@ ggplot(data = RmZone_Env9010 %>% filter(year > 2000)) +
         legend.position = "right")
 
 TNspmedens <- 
-  ggplot(data = RmZone_Env8515) + 
+  ggplot(data = RmZone_Env8515.tss) + 
   #geom_smooth(method = "lm", aes(x = TN.me, y = dens.permax.change)) +
   geom_point(aes(x = TN.spme, y = dens.percomp.change, color = year)) +
+  theme_bw(base_size=14) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        legend.position = "right")
+
+TNspDmedens <- #notrends
+  ggplot(data = RmZone_Env8515.tss) + 
+  #geom_smooth(method = "lm", aes(x = TN.me, y = dens.permax.change)) +
+  geom_point(aes(x = TN.spDme, y = dens.percomp.change, color = year)) +
   theme_bw(base_size=14) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
         legend.position = "right")
@@ -563,6 +593,14 @@ Tempy1DposInc <-  ##this one was supposedly corr w increases but looks like nah
         legend.position = "")
 
 #Secc plots####
+seccspmedens <- 
+  ggplot(data = RmZone_spmeEnv9010.tss) + 
+  #geom_smooth(method = "lm", aes(x = Secc.y1Dme, y = dens.percomp.change)) +
+  geom_point(aes(x = Secc.spme, y = dens.percomp.change, color = year)) +
+  theme_bw(base_size=14) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "")
 #nothing really here
 seccy1Dmedens2k <- 
 ggplot(data = RmZone_Env8515 %>% filter(year >1999)) + 
@@ -592,7 +630,7 @@ TSSmedens <-
         legend.position = "right")
 #TSS.sp me
 TSSspmedens <- 
-  ggplot(data = RmZone_Env8515.tss) +# %>% filter(year > 1990)) + #%>% drop_na() ) + 
+  ggplot(data = RmZone_spmeEnv8515.tss) +# %>% filter(year > 1990)) + #%>% drop_na() ) + 
   geom_smooth(method = "lm", aes(x = log10(TSSr.spme), y = dens.percomp.change), color = "brown") +
   geom_point(aes(x = log10(TSSr.spme), y = dens.percomp.change), color = "brown") +
   theme_bw(base_size=14) +
@@ -773,7 +811,7 @@ multiWQtime <-
     axis.title.y = element_text(color = "green"),
     axis.title.y.right = element_text(color = "brown")) + 
   xlab("") + 
-  scale_x_continuous(n.breaks = 20) +
+  scale_x_continuous(n.breaks = 10) +
   theme_bw(base_size=24) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
         legend.position = "right")
@@ -799,25 +837,38 @@ TPy1summedens + TNmedens2K
 #patch2b + plot_annotation(tag_levels = 'A')
 
 ######Interaction plots#####
-chlaXdmw <- (RmZone_Env8515 %>% mutate(ChlAxDMW = log10(ChlA.spme)*dens.percomp.y1) %>%
+chlaXdmw <- (RmZone_spmeEnv.tss %>% mutate(ChlAxDMW = log10(ChlA.spme)*dens.percomp.y1) %>%
   qplot(data = ., x = ChlAxDMW, y = dens.percomp.change, color = dens.percomp.y1) +
     geom_point(size = 2.5) +scale_color_gradient(low="blue", high="red") +
     xlab("Chla spring * Ru y-1") + ylab("Ruppia change") +
     theme_bw(base_size=25)+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right"))
 
-salXdmw <- (RmZone_Env8515 %>% mutate(SalxDMW = log(Sal.spme)*dens.percomp.y1) %>%
+a <- (RmZone_spmeEnv.tss %>% mutate(SalxDMW = log10(Sal.spme)*dens.percomp.y1) %>%
+    qplot(data = ., x = SalxDMW, y = dens.percomp.change, color = Sal.spme))
+
+a + salXdmw
+
+salXdmw <- (RmZone_spmeEnv.tss %>% mutate(SalxDMW = log10(Sal.spme)*dens.percomp.y1) %>%
   qplot(data = ., x = SalxDMW, y = dens.percomp.change, color = dens.percomp.y1)+scale_color_gradient(low="blue", high="red") + 
     geom_point(size = 2.5) +scale_color_gradient(low="blue", high="red") +
     xlab("Salinity spring * Ru y-1") + ylab("Ruppia change") +theme_bw(base_size=25)+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = ""))
 
-TSSXdmw <- (RmZone_Env8515.tss %>% mutate(TSSxDMW = log(TSSr.spme)*dens.percomp.y1) %>%
-              qplot(data = ., x = TSSxDMW, y = dens.percomp.change, color = dens.percomp.y1)+scale_color_gradient(low="blue", high="red") + 
-              xlab("TSS spring * Ru y-1") + ylab("Ruppia change") + theme_bw(base_size=25)+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = ""))
+hist(Rm_SEMspme.tss$TSSr.spme)
 
-tpXdmw <- (RmZone_Env8515 %>% mutate(TPxDMW = log(TP.sumy1me)*dens.percomp.y1) %>%
+b + TSSXdmw
+
+b <- (Rm_SEMspme.tss %>% mutate(TSSxDMW = log10(TSSr.spme)*dens.percomp.y1) %>%
+        qplot(data = ., x = TSSxDMW, y = dens.percomp.change, color = log10(TSSr.spme)))
+
+TSSXdmw <- (Rm_SEMspme.tss %>% mutate(TSSxDMW = log10(TSSr.spme)*dens.percomp.y1) %>%
+              qplot(data = ., x = TSSxDMW, y = dens.percomp.change, color = dens.percomp.y1)+scale_color_gradient(low="blue", high="red") + 
+              xlab("TSS spring * Ru y-1") + ylab("Ruppia change") + theme_bw(base_size=20)+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right"))
+
+tpXdmw <- (RmZone_spmeEnv.tss %>% mutate(TPxDMW = log10(TP.spme)*dens.percomp.y1) %>%
               qplot(data = ., x = TPxDMW, y = dens.percomp.change, color = dens.percomp.y1)+ scale_color_gradient(low="blue", high="red") + 
              xlab("TP spring * Ru y-1") + ylab("Ruppia change") + theme_bw(base_size=25)+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = ""))
-tnXdmw <- (RmZone_Env8515 %>% mutate(TNxDMW = log(TN.sumy1me)*dens.percomp.y1) %>%
+
+tnXdmw <- (RmZone_spmeEnv.tss %>% mutate(TNxDMW = log(TN.sumy1me)*dens.percomp.y1) %>%
              qplot(data = ., x = TNxDMW, y = dens.percomp.change, color = dens.percomp.y1)+ scale_color_gradient(low="blue", high="red") + 
              xlab("TN spring * Ru y-1") + ylab("Ruppia change") + theme_bw(base_size=25)+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = ""))
 secXdmw <- (RmZone_Env8515 %>% mutate(SecxDMW = Secc.y1Dme*dens.percomp.y1) %>%
@@ -896,7 +947,10 @@ plot(simulateResiduals(rmmeanenv.lmer))
 qqnorm(residuals(rmmeanenv.lmer))
 testZeroInflation(simulateResiduals(rmmeanenv.lmer))
 
-##predictive check
+
+
+
+##predictive check on lmer
 y1<-predict(rmmeanenv.lmer)
 predy <- y1 * daw$denscomp.max
 
@@ -1039,6 +1093,7 @@ RmZoneSubestuaries <- SAVyear_Subestuary %>%
 write_csv(RmZoneSubestuaries, "../Ruppia/RmZoneSubestuaries.csv")
 
 Subestuary_WQ<- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/Subestuary_WQ.csv")
+
 ####MASTER ENV AND Subestuary DATASET RmSubE_Env ####
 RmSubE_Env <- Subestuary_WQ %>%
   filter(SUBEST_ID %in% RuppiaSubestuaries$SUBEST_ID) %>%
@@ -1091,8 +1146,11 @@ RmSubE_Env_Dec.tail #dec in RM SubEZone and filtered USE Env data, bottom tail f
 
 
 ######Part 3: Correlations and Exploratory Subestuaries #####
+
+RmSubE_Env982 <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE_Env982.csv")
+
 #######Scatterplots of possible predictors and dens.percomp.change ######
-e<-qplot(y = dens.percomp.change, x = log10(nptp.adj), color = Year, data = RmSubE_Env8515 %>% drop_na()) + theme(legend.position="none")
+e<-qplot(y = log10(tssx.adj), x = log10(nptp.adj), color = Year, data = RmSubE_Env982 %>% drop_na()) + theme(legend.position="none")
 f<-qplot(y = dens.percomp.change, x = log10(nptn.adj), color = Year, data = RmSubE_Env8515%>% drop_na()) + theme(legend.position="none")
 e+f
 
@@ -1109,7 +1167,7 @@ SubERu <-
         legend.position = "right")
 
 meancompchangeSubE <- 
-  ggplot(data = RmSubE_Env982 %>% filter(Year < 2012)) + 
+  ggplot(data = RmSubE988_SEM) + #%>% filter(Year < 2012)) + 
   #geom_point(aes(x = Year, y = dens.percomp.change), color = "black", alpha = 0.5, size = 1.5) +
   stat_summary(aes(x = Year, y = dens.percomp.change), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "purple") +
   stat_summary(aes(x = Year, y = dens.percomp.change), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = .9, color = "purple") +
@@ -1124,8 +1182,8 @@ meancompchangeSubE <-
 ####Statoion amd Subest togethe####
 StationSubest_RuChangetime <- 
   ggplot(data = RmZone_Env8515) + 
-    stat_summary(data = RmSubE_Env8515, aes(x = Year, y = dens.percomp.change), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = .9, color = "purple") +
-    stat_summary(data = RmSubE_Env8515, aes(x = Year, y = dens.percomp.change), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .5, color = "purple") +
+    stat_summary(data = RmSubE_Env982, aes(x = Year, y = dens.percomp.change), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = .9, color = "purple") +
+    stat_summary(data = RmSubE_Env982, aes(x = Year, y = dens.percomp.change), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .5, color = "purple") +
   stat_summary(data = RmZone_Env8515, aes(x = year, y = dens.percomp.change), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = .9, color = "black") +
     stat_summary(data = RmZone_Env8515, aes(x = year, y = dens.percomp.change), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .5, color = "black") +
   geom_hline(yintercept = 0, color = "red") +

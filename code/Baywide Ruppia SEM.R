@@ -1,76 +1,43 @@
+
 #Baywide Ruppia SEMs
 library(tidyverse); library(readxl); library(patchwork);library(beyonce)
 library(lme4); library(MuMIn); library(DHARMa); library(piecewiseSEM); library(nlme); library(semPlot)
 
-#data to use is here. maybe the 8515 data if needed? also could load decrease/increase data. Check Baywide_RuChange_models for that
-Env_Var_nosumy1sp.CBP_WQ <-read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/Env_Var_nosumy1sp.CBP_WQ.csv") #more informative and not as unweildy. Has y1 means, summer y1, spring this year. (eliminates y1 spring, summer this year). 
-Env_Var.tss <-read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/CBP WQ Station data/Env_Var.tss.csv")
-
-Env_Var_nosumy1sp.CBP_WQ
-Env_Var.tss
-
-####MASTER ENV AND BAYWIDE DATASET RmZone_Env #### make sure to run the NA code below this
-RmZone_Env <- Env_Var_nosumy1sp.CBP_WQ %>%
-  filter(STATION %in% RuppiaStations$STATION) %>%
-  full_join(RmZoneStations) 
-
-is.nan.data.frame <- function(x)
-  do.call(cbind, lapply(x, is.nan))
-#is.na(RmZone_Env) <- RmZone_Env == "NaN"
-RmZone_Env[is.nan(RmZone_Env)] <- 0
-is.na(RmZone_Env) <- RmZone_Env == "Inf"
-is.na(RmZone_Env) <- RmZone_Env == "-Inf"
-RmZone_Env <- as.data.frame(RmZone_Env)
 
 
-##With TSS data now!
-RmZone_Env.tss <- Env_Var.tss %>%
-  filter(STATION %in% RuppiaStations$STATION) %>%
-  full_join(RmZoneStations) #%>%
-#filter(denscomp.max > 5) #this gets rid of any zones that are really tiny. about 200 data points less. originally i thought this would clean things up but it actually weakens the SEM? idk about for these graphs
-
-is.nan.data.frame <- function(x)
-  do.call(cbind, lapply(x, is.nan))
-#is.na(RmZone_Env) <- RmZone_Env == "NaN"
-RmZone_Env.tss[is.nan(RmZone_Env.tss)] <- 0
-is.na(RmZone_Env.tss) <- RmZone_Env.tss == "Inf"
-is.na(RmZone_Env.tss) <- RmZone_Env.tss == "-Inf"
-RmZone_Env.tss <- as.data.frame(RmZone_Env.tss)
+RmZone_Env <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmZone_Env.csv")
+RmZone_Env <- read.csv("../data/RmZone_Env.csv")
+RmZone_Env.tss <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmZone_Env.tss.csv")
+RmZone_spmeEnv.tss <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmZone_spmeEnv.tss.csv")
 
 
-RmZone_Env <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmZone_Env.csv")
-#this is the lmer that works best for reference
-rmmeanenvtest.lmer <- lmer(dens.percomp.change ~ SAVArea.y1 + ChlA.me + Sal.me + (dens.percomp.y1:Sal.spme)+ (dens.percomp.y1:Sal.y1Dpos) + (dens.percomp.y1:ChlA.spme) + (TP.sumy1me:dens.percomp.y1) +(Secc.y1Dme:dens.percomp.y1) + (1|STATION),  data = RmZone_Env) 
-
-g<-qplot(y = log10(TP.spme), x = log10(TSS.spme), color = year, data = RmZone_Env.TSS)+ theme(legend.position="none")
-h<-qplot(y = dens.percomp.change, x = Sal.Dneg, color = year, data = RmZone_Env8515)
-g+h
-
-ggplot(data = RmZone_Env.TSS) + 
-  #geom_smooth(method = "lm", aes(x = (log10(TSS.spme)*dens.percomp.y1), y = dens.percomp.change)) +
-  geom_point(aes(x = (log10(TSS.spme)*dens.percomp.y1), y = dens.percomp.change, color = dens.percomp.y1)) + 
-  ylab("Ruppia density change") + xlab("TSS.spring * Ruppia density y-1") +
-  theme_bw(base_size=20) +
-  scale_color_gradient(low="blue", high="red") +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
-        legend.position = "right")
-
-head(Env_Var_year.CBP_WQ)
-#chris tss modeling
-f1 <- lmer(TSS.me ~ TP.me + TN.me + Secc.me + Sal.me + (1|STATION) + (1|year), Env_Var_year.CBP_WQ[Env_Var_year.CBP_WQ$year > 2003,])
-
-r.squaredGLMM(f1)
-coT <- lm(Sal.spme ~ TSS.spme, data = RmZone_Env.TSS)
-cor(RmZone_Env.TSS:log10(Sal.spme), RmZone_Env.TSSlog10(TSS.spme))
 
 ##Generate the Rm_SEM dataset here####
 #drop NAs, filter out nonsense values
 
 Rm_SEM <- RmZone_Env %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0) #%>% filter(year > 1999)
-Rm_SEM.tss <- RmZone_Env.tss %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0)
+Rm_SEM.tss <- RmZone_Env.tss  %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0)
+#USE ME!! below
+Rm_SEMspme.tss <- RmZone_spmeEnv.tss  %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0) %>% filter(TSSr.spme < 200)
+
+colSums(is.na(Rm_SEMspme.tss))
+
+Rm_SEM85 <- RmZone_Env8515 %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0) #%>% filter(year > 1999)
+Rm_SEM.tss85 <- RmZone_Env8515.tss  %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0)
+Rm_SEMspme8515.tss <- RmZone_spmeEnv8515.tss  %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0)
+
+Rm_SEMspme9010.tss <- RmZone_spmeEnv9010.tss  %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0)
+
+write_csv(Rm_SEM, "/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/Rm_SEM.csv")
+write_csv(Rm_SEM, "./data/Rm_SEM.csv")
+write_csv(Rm_SEM.tss, "/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/Rm_SEM.tss.csv")
+write_csv(Rm_SEM.tss, "./data/Rm_SEM.tss.csv")
+
+write_csv(Rm_SEMspme.tss, "/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/Rm_SEMspme.tss.csv")
+write_csv(Rm_SEMspme.tss, "./data/Rm_SEMspme.tss.csv")
 
 Rm_SEM  #1455 obs
-Rm_SEM.tss #8934 obs
+Rm_SEM.tss #1368 obs 
 
 ###sems below, listed
 RmBay.sem  #p = .21, spring means no logging, TN included makes it worse but we are going to keep it in
@@ -82,95 +49,325 @@ RmBayLM.sem #p = .8, same as RmBay.sem but linear
 RmBayLOG_03.sem
 RmBayLOG.tss.sem #p = .3, RmBayLOG with TSS (uses Rm_SEM.tss)
 
-AIC(RmBayLOG.tss.sem, RmBayLOG_03.sem)
 
-#this first one is the skeleton w p = .2.
-#TN in model, spring means only
-RmBaysp.sem <- psem(
-  ChlAsp <- lme(ChlA.spme ~
-                  TP.spme +
-                  TN.spme,
+qplot(y = log10(TSSr.spme), x = log10(ChlA.spme), color = dens.percomp.change, data = Rm_SEMspme.tss) +
+  theme_bw(base_size=14) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), legend.position = "right")
+
+
+AIC(RmBayLOG.sem, RmBayLOGsp.sem)
+
+
+Rm_SEMspme.tss <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/Rm_SEMspme.tss.csv")
+Rm_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/Rm_SEM.csv")
+
+##p = .157, C = 11.8
+#N, Sal have direct effect on RuChange
+#include chla~sal and its .4, c = 4.0
+RmBayLOGsp.tss.sem <- psem(
+  ChlAsp <- lme(log10(ChlA.spme) ~
+                  log10(TSSr.spme) +
+                  log10(TP.spme) +
+                  log10(TN.spme),
                 random = ~ 1 | STATION,
-                correlation = corARMA(form = ~ 1 | STATION, q = 2),
+                correlation = corARMA(form = ~ 1 | STATION, q = 1),
+                control = lmeControl(opt = "optim"),
+                data = Rm_SEMspme.tss),
+  Seccsp <- lme(log10(Secc.spme) ~
+                  log10(TSSr.spme) +
+                  log10(ChlA.spme) +
+                 # log10(Sal.spme) +
+                  log10(TN.spme) +
+                  log10(TP.spme),
+                random = ~ 1 | STATION,
+                correlation = corARMA(form = ~ 1 | STATION, q = 1),
+                control = lmeControl(opt = "optim"),
+                data = Rm_SEMspme.tss),
+  RuInt <- lme(dens.percomp.change ~
+                 dens.percomp.y1 +
+             #    log10(TSSr.spme) +
+                 log10(Sal.spme) + 
+                 log10(ChlA.spme) + 
+                 log10(TP.spme) +
+                 log10(TN.spme) + 
+                 log10(Secc.spme) +
+           #      (dens.percomp.y1:log10(TSSr.spme)) +
+                 (dens.percomp.y1:log10(Secc.spme)) +
+                 (dens.percomp.y1:log10(Sal.spme)) + 
+                 (dens.percomp.y1:log10(ChlA.spme)) + 
+                 (log10(TP.spme):dens.percomp.y1) +
+                 (log10(TN.spme):dens.percomp.y1) +
+                 (log10(Secc.spme):dens.percomp.y1),
+               random = ~ 1 | STATION,
+               correlation = corARMA(form = ~ 1 | STATION , q = 1),
+               control = lmeControl(opt = "optim"),
+               data = Rm_SEMspme.tss),
+  log10(TSSr.spme) %~~% log10(Sal.spme),
+  log10(TN.spme) %~~% log10(TP.spme),
+  log10(TN.spme) %~~% log10(Sal.spme),
+  log10(TP.spme) %~~% log10(Sal.spme),
+  log10(TN.spme) %~~% log10(TSSr.spme),
+  log10(TP.spme) %~~% log10(TSSr.spme),
+  log10(Secc.spme) %~~% log10(Sal.spme),
+#  log10(ChlA.spme) %~~% log10(Sal.spme),
+  data = Rm_SEMspme.tss)
+
+summary(RmBayLOGsp.tss.sem)
+coefs(RmBayLOGsp.tss.sem)
+dSep(RmBayLOGsp.tss.sem)
+fisherC(RmBayLOGsp.tss.sem)
+
+#TSS removed, slightly different DF used (RM_SEM)
+
+#which DF to use acutally. better fit with spme.tss and TSS in but not as a predictor of change. also Rm_SEM fits p = .05, no tss but using tss dataset p = .07
+
+#ChlA ~ Sal appears to be a big mover of the fit (include and its very good)
+
+RmBayLOGsp.sem <- psem(
+  ChlAsp <- lme(log10(ChlA.spme) ~
+                  log10(TP.spme) +
+                  log10(TN.spme),
+                random = ~ 1 | STATION,
+                correlation = corARMA(form = ~ 1 | STATION, q = 1),
                 control = lmeControl(opt = "optim"),
                 data = Rm_SEM),
-  Seccsp <- lme(Secc.spme ~
-                  ChlA.spme +
-                  Sal.spme +
-                  TN.spme +
-                  TP.spme,
+  Seccsp <- lme(log10(Secc.spme) ~
+                  log10(ChlA.spme) +
+                  log10(TN.spme) +
+                  log10(TP.spme),
                 random = ~ 1 | STATION,
-                correlation = corARMA(form = ~ 1 | STATION, q = 2),
+                correlation = corARMA(form = ~ 1 | STATION, q = 1),
                 control = lmeControl(opt = "optim"),
                 data = Rm_SEM),
   RuInt <- lme(dens.percomp.change ~
                  dens.percomp.y1 +
-                 Sal.spme + 
-                 ChlA.spme + 
-                 TP.spme +
-                 TN.spme +
-                 Secc.spme +
-                 (dens.percomp.y1:Sal.spme) + 
-                 (dens.percomp.y1:ChlA.spme) + 
-                 (TP.spme:dens.percomp.y1) +
-                 (TN.spme:dens.percomp.y1) +
-                 (Secc.spme:dens.percomp.y1),
+                 log10(Sal.spme) + 
+                 log10(ChlA.spme) + 
+                  log10(TP.spme) +
+                 log10(TN.spme) + 
+                 log10(Secc.spme) +
+                 (dens.percomp.y1:log10(Secc.spme)) +
+                 (dens.percomp.y1:log10(Sal.spme)) + 
+                 (dens.percomp.y1:log10(ChlA.spme)) + 
+                (log10(TP.spme):dens.percomp.y1) +
+                 (log10(TN.spme):dens.percomp.y1) +
+                 (log10(Secc.spme):dens.percomp.y1),
                random = ~ 1 | STATION,
-               correlation = corARMA(form = ~ 1 | STATION, q = 2),
+               correlation = corARMA(form = ~ 1 | STATION , q = 1),
                control = lmeControl(opt = "optim"),
                data = Rm_SEM),
-  TN.spme %~~% TP.spme,
-  Secc.spme %~~% Sal.spme,
-  ChlA.spme %~~% Sal.spme,
-  TP.spme %~~% Sal.spme,
+  log10(TN.spme) %~~% log10(TP.spme),
+  log10(TN.spme) %~~% log10(Sal.spme),
+  log10(TP.spme) %~~% log10(Sal.spme),
+  log10(Secc.spme) %~~% log10(Sal.spme),
   data = Rm_SEM)
 
-summary(RmBaysp.sem)
-coefs(RmBay.sem)
-dSep(RmBay.sem)
-fisherC(RmBay.sem)
+summary(RmBayLOGsp.sem)
 
-#annual means (not spring) fits p = .168
-RmBay.sem <- psem(
-  ChlAme <- lme(ChlA.me ~
-                  TP.me +
-                  TN.me,
+##BEST SEM LOG no TSS##
+#Log everytnig SEM. Highest P value here
+RmBayLOG.sem <- psem(
+  ChlAsp <- lme(log10(ChlA.spme) ~
+                  log10(TP.spme) +
+                  log10(TN.spme),
                 random = ~ 1 | STATION,
-                correlation = corARMA(form = ~ 1 | STATION, q = 2),
+                correlation = corARMA(form = ~ 1 | STATION, q = 1),
                 control = lmeControl(opt = "optim"),
                 data = Rm_SEM),
-  Seccme <- lme(Secc.me ~
-                  ChlA.me +
-                  Sal.me +
-                  TN.me +
-                  TP.me,
+  Seccsp <- lme(log10(Secc.spme) ~
+                  log10(ChlA.spme) +
+                  #log10(Sal.spme) +
+                  log10(TN.spme) +
+                  log10(TP.spme),
                 random = ~ 1 | STATION,
-                correlation = corARMA(form = ~ 1 | STATION, q = 2),
+                correlation = corARMA(form = ~ 1 | STATION, q = 1),
                 control = lmeControl(opt = "optim"),
                 data = Rm_SEM),
   RuInt <- lme(dens.percomp.change ~
                  dens.percomp.y1 +
-                 Sal.me + 
-                 ChlA.me + 
-                 TP.me +
-                 TN.me +
-                 Secc.me +
-                 (dens.percomp.y1:Sal.me) + 
-                 (dens.percomp.y1:ChlA.me) + 
-                 (TP.me:dens.percomp.y1) +
-                 (TN.me:dens.percomp.y1) +
-                 (Secc.me:dens.percomp.y1),
+                 log10(Sal.spme) + 
+                 log10(ChlA.spme) + 
+                 log10(TP.spme) +
+                 log10(TN.spme) + 
+                 log10(Secc.spme) +
+                 (dens.percomp.y1:log10(Sal.spme)) + 
+                 (dens.percomp.y1:log10(ChlA.spme)) + 
+                 (log10(TP.spme):dens.percomp.y1) +
+                 (log10(TN.spme):dens.percomp.y1) +
+                 (log10(Secc.spme):dens.percomp.y1),
+               random = ~ 1 | STATION,
+               correlation = corARMA(form = ~ 1 | STATION, q = 1),
+               control = lmeControl(opt = "optim"),
+               data = Rm_SEM),
+  log10(TN.spme) %~~% log10(TP.spme),
+  log10(Secc.spme) %~~% log10(Sal.spme),
+  log10(ChlA.spme) %~~% log10(Sal.spme),
+  #log10(TP.spme) %~~% log10(Sal.spme),
+  #log10(TN.spme) %~~% log10(Sal.spme),
+  data = Rm_SEM)
+
+summary(RmBayLOG.sem)
+coefs(RmBayLOG.sem)
+dSep(RmBayLOG.sem)
+fisherC(RmBayLOG.sem)
+
+
+#no secci fits fine p = .2 c = 5.9
+RmBayLOG.chla.sem <- psem(
+  ChlAsp <- lme(log10(ChlA.spme) ~
+                  log10(TSSr.spme)
+                  log10(TP.spme) +
+                  log10(TN.spme),
+                random = ~ 1 | STATION,
+                correlation = corARMA(form = ~ 1 | STATION, q = 1),
+                control = lmeControl(opt = "optim"),
+                data = Rm_SEMspme.tss),
+  # Seccsp <- lme(log10(Secc.spme) ~
+  #                log10(ChlA.spme) +
+  #log10(Sal.spme) +
+  #                log10(TN.spme) +
+  #                log10(TP.spme),
+  #              random = ~ 1 | STATION,
+  #              correlation = corARMA(form = ~ 1 | STATION, q = 1),
+  #             control = lmeControl(opt = "optim"),
+  #              data = Rm_SEM),
+  RuInt <- lme(dens.percomp.change ~
+                 dens.percomp.y1 +
+                 log10(Sal.spme) + 
+                 log10(ChlA.spme) + 
+                 log10(TSSr.spme) +
+                 #          log10(TP.spme) +
+                 log10(TN.spme) + 
+                          log10(TSSr.spme) +
+                 (dens.percomp.y1:log10(Sal.spme)) + 
+                 (dens.percomp.y1:log10(ChlA.spme)) + 
+                 #        (log10(TP.spme):dens.percomp.y1) +
+                 (log10(TN.spme):dens.percomp.y1) ,
+               #    (log10(Secc.spme):dens.percomp.y1),
+               random = ~ 1 | STATION,
+               correlation = corARMA(form = ~ 1 | STATION, q = 1),
+               control = lmeControl(opt = "optim"),
+               data = Rm_SEMspme.tss),
+  log10(TN.spme) %~~% log10(TP.spme),
+  log10(Secc.spme) %~~% log10(Sal.spme),
+  log10(ChlA.spme) %~~% log10(Sal.spme),
+  #log10(TP.spme) %~~% log10(Sal.spme),
+  #log10(TN.spme) %~~% log10(Sal.spme),
+  data = Rm_SEMspme.tss)
+
+#year as fixed effect not station, fits a little better actually
+RmBayLOGsp.tss.semYR <- psem(
+  TSSsp <- lme(log10(TSSr.spme) ~
+                 log10(TP.spme) +
+                 log10(TN.spme),
+               random = ~ 1 | year,
+               correlation = corARMA(form = ~ 1 | year, q = 2),
+               control = lmeControl(opt = "optim"),
+               data = Rm_SEMspme.tss),
+  ChlAsp <- lme(log10(ChlA.spme) ~
+                  log10(TSSr.spme) +
+                  log10(TP.spme) +
+                  log10(TN.spme),
+                random = ~ 1 | year,
+                correlation = corARMA(form = ~ 1 | year, q = 2),
+                control = lmeControl(opt = "optim"),
+                data = Rm_SEMspme.tss),
+  Seccsp <- lme(log10(Secc.spme) ~
+                  log10(TSSr.spme) +
+                  log10(ChlA.spme) +
+                  log10(Sal.spme) +
+                  log10(TN.spme) +
+                  log10(TP.spme),
+                random = ~ 1 | year,
+                correlation = corARMA(form = ~ 1 | year, q = 2),
+                control = lmeControl(opt = "optim"),
+                data = Rm_SEMspme.tss),
+  RuInt <- lme(dens.percomp.change ~
+                 dens.percomp.y1 +
+                 log10(TSSr.spme) +
+                 log10(Sal.spme) + 
+                 log10(ChlA.spme) + 
+                 log10(TP.spme) +
+                 log10(TN.spme) + 
+                 log10(Secc.spme) +
+                 (dens.percomp.y1:log10(TSSr.spme)) +
+                 (dens.percomp.y1:log10(Secc.spme)) +
+                 (dens.percomp.y1:log10(Sal.spme)) + 
+                 (dens.percomp.y1:log10(ChlA.spme)) + 
+                 (log10(TP.spme):dens.percomp.y1) +
+                 (log10(TN.spme):dens.percomp.y1) +
+                 (log10(Secc.spme):dens.percomp.y1),
+               random = ~ 1 | year,
+               correlation = corARMA(form = ~ 1 | year, q = 2),
+               control = lmeControl(opt = "optim"),
+               data = Rm_SEMspme.tss),
+  log10(TSSr.spme) %~~% log10(Sal.spme),
+  log10(TN.spme) %~~% log10(TP.spme),
+  log10(ChlA.spme) %~~% log10(Sal.spme),
+  log10(ChlA.spme) %~~% log10(Secc.spme),
+  log10(Secc.spme) %~~% log10(Sal.spme),
+  data = Rm_SEMspme.tss)
+
+summary(RmBayLOGsp.tss.semYR)
+
+AIC(RmBayLOGsp.tss.semYR, RmBayLOGsp.tss.sem)
+
+
+
+#annual means (not spring) doesnt fit
+#Chla.me*y1 signif, no sal
+RmBayAnn.sem <- psem(
+  TSS <- lme(log10(TSSr.me) ~
+                 log10(TP.me) +
+                 log10(TN.me),
                random = ~ 1 | STATION,
                correlation = corARMA(form = ~ 1 | STATION, q = 2),
                control = lmeControl(opt = "optim"),
-               data = Rm_SEM),
-  TN.me %~~% TP.me,
-  Secc.me %~~% Sal.me,
-  ChlA.me %~~% Sal.me,
-  TP.me %~~% Sal.me,
-  data = Rm_SEM)
+               data = Rm_SEM.tss),
+  ChlA <- lme(log10(ChlA.me) ~
+                  log10(TSSr.me) +
+                  log10(TP.me) +
+                  log10(TN.me),
+                random = ~ 1 | STATION,
+                correlation = corARMA(form = ~ 1 | STATION, q = 2),
+                control = lmeControl(opt = "optim"),
+                data = Rm_SEM.tss),
+  Secc <- lme(log10(Secc.me) ~
+                  log10(TSSr.me) +
+                  # log10(ChlA.me) +
+                  log10(Sal.me) +
+                  log10(TN.me) +
+                  log10(TP.me),
+                random = ~ 1 | STATION,
+                correlation = corARMA(form = ~ 1 | STATION, q = 2),
+                control = lmeControl(opt = "optim"),
+                data = Rm_SEM.tss),
+  RuInt <- lme(dens.percomp.change ~
+                 dens.percomp.y1 +
+                 log10(TSSr.me) +
+                 log10(Sal.me) + 
+                 log10(ChlA.me) + 
+                 log10(TP.me) +
+                 log10(TN.me) + 
+                 log10(Secc.me) +
+                 (dens.percomp.y1:log10(TSSr.me)) +
+                 (dens.percomp.y1:log10(Secc.me)) +
+                 (dens.percomp.y1:log10(Sal.me)) + 
+                 (dens.percomp.y1:log10(ChlA.me)) + 
+                 (log10(TP.me):dens.percomp.y1) +
+                 (log10(TN.me):dens.percomp.y1) +
+                 (log10(Secc.me):dens.percomp.y1),
+               random = ~ 1 | STATION,
+               correlation = corARMA(form = ~ 1 | STATION, q = 2),
+               control = lmeControl(opt = "optim"),
+               data = Rm_SEM.tss),
+  log10(TSSr.me) %~~% log10(Sal.me),
+  log10(TN.me) %~~% log10(TP.me),
+  log10(ChlA.me) %~~% log10(Sal.me),
+  log10(ChlA.me) %~~% log10(Secc.me),
+  #log10(Secc.spme) %~~% log10(TSSr.spme),
+  data = Rm_SEM.tss)
 
-summary(RmBay.sem)
+summary(RmBayAnn.sem)
 
 #y1 means (not spring) DOES NOT FIT
 RmBayy1.sem <- psem(
@@ -180,8 +377,9 @@ RmBayy1.sem <- psem(
                 random = ~ 1 | STATION,
                 correlation = corARMA(form = ~ 1 | STATION, q = 2),
                 control = lmeControl(opt = "optim"),
-                data = Rm_SEM),
+                data = Rm_SEM.tss),
   Seccy1me <- lme(Secc.y1me ~
+                  TSSr.y1me +
                   ChlA.y1me +
                   Sal.y1me +
                   TN.y1me +
@@ -189,7 +387,7 @@ RmBayy1.sem <- psem(
                 random = ~ 1 | STATION,
                 correlation = corARMA(form = ~ 1 | STATION, q = 2),
                 control = lmeControl(opt = "optim"),
-                data = Rm_SEM),
+                data = Rm_SEM.tss),
   RuInt <- lme(dens.percomp.change ~
                  dens.percomp.y1 +
                  Sal.y1me + 
@@ -214,12 +412,12 @@ RmBayy1.sem <- psem(
 
 summary(RmBayy1.sem)
 
-plot(RmBayLOG.sem, return = FALSE, node_attrs = data.frame(shape = "rectangle", color = "black", fillcolor = "white", width = .7),
-     edge_attrs = data.frame(style = "solid", color = "black", arrowsize = 1, penwidth = 1),
-     ns_dashed = T, alpha = 0.05, show = "std", digits = 2,
-     add_edge_label_spaces = T)
+#plot(RmBayLOG.sem, return = FALSE, node_attrs = data.frame(shape = "rectangle", color = "black", fillcolor = "white", width = .7),
+#     edge_attrs = data.frame(style = "solid", color = "black", arrowsize = 1, penwidth = 1),
+#     ns_dashed = T, alpha = 0.05, show = "std", #digits = 2,
+#     add_edge_label_spaces = T)
 
-##TN removed p = .31 no logs
+##NoTssTN removed p = .31 no logs
 RmBay.sem1 <- psem(
   ChlAsp <- lme(ChlA.spme ~
                   TP.spme ,
@@ -257,52 +455,7 @@ RmBay.sem1 <- psem(
 summary(RmBay.sem1)
 AIC(RmBay.sem, RmBay.sem1)
 
-####BEST SEM LOG####
-#Log everytnig SEM. Highest P value here
-RmBayLOG.sem <- psem(
-  ChlAsp <- lme(log10(ChlA.spme) ~
-                  log10(TP.spme) +
-                  log10(TN.spme),
-                random = ~ 1 | STATION,
-    #            correlation = corARMA(form = ~ 1 | STATION, q = 2),
-                control = lmeControl(opt = "optim"),
-                data = Rm_SEM),
-  Seccsp <- lme(log10(Secc.spme) ~
-                  log10(ChlA.spme) +
-                  log10(Sal.spme) +
-                  log10(TN.spme) +
-                  log10(TP.spme),
-                random = ~ 1 | STATION,
-     #           correlation = corARMA(form = ~ 1 | STATION, q = 2),
-                control = lmeControl(opt = "optim"),
-                data = Rm_SEM),
-  RuInt <- lme(dens.percomp.change ~
-                 dens.percomp.y1 +
-                 log10(Sal.spme) + 
-                 log10(ChlA.spme) + 
-                 log10(TP.spme) +
-                 log10(TN.spme) + 
-                 log10(Secc.spme) +
-                 (dens.percomp.y1:log10(Secc.spme)) +
-                 (dens.percomp.y1:log10(Sal.spme)) + 
-                 (dens.percomp.y1:log10(ChlA.spme)) + 
-                 (log10(TP.spme):dens.percomp.y1) +
-                 (log10(TN.spme):dens.percomp.y1) +
-                 (log10(Secc.spme):dens.percomp.y1),
-               random = ~ 1 | STATION,
-     #          correlation = corARMA(form = ~ 1 | STATION, q = 2),
-               control = lmeControl(opt = "optim"),
-               data = Rm_SEM),
-  log10(TN.spme) %~~% log10(TP.spme),
-  log10(Secc.spme) %~~% log10(Sal.spme),
-  log10(ChlA.spme) %~~% log10(Sal.spme),
-  log10(TP.spme) %~~% log10(Sal.spme),
-  data = Rm_SEM)
 
-summary(RmBayLOG.sem)
-coefs(RmBayLOG.sem)
-dSep(RmBayLOG.sem)
-fisherC(RmBayLOG.sem)
 
 #test .tss data
 #ok i just wanted to test if the best SEM we have still fits the data from the .tss dataset and it does p = .23
@@ -350,18 +503,24 @@ summary(RmBayLOGcompare.tss.sem)
 
 AIC(RmBayLOGsp.tss_03.sem, RmBayLOG.tss.sem, RmBayLOG.sem)
 
-#linear logged using lms fits fine at .363
+#linear logged using lms fits fine at .363 but not for TSS data
 RmBayLMLOG.sem <- psem(
+  TSS <- lm(log10(TSSr.me) ~
+               log10(TP.me) +
+               log10(TN.me), 
+            data = Rm_SEM.tss),
   ChlAsp <- lm(log10(ChlA.spme) ~
                   log10(TP.spme) +
-                  log10(TN.spme),
-                data = Rm_SEM),
+                  log10(TN.spme) + 
+                  log10(TSSr.spme),
+                data = Rm_SEM.tss),
   Seccsp <- lm(log10(Secc.spme) ~
                   log10(ChlA.spme) +
                   log10(Sal.spme) +
                   log10(TN.spme) +
-                  log10(TP.spme),
-                data = Rm_SEM),
+                  log10(TP.spme) +
+                  log10(TSSr.spme),
+                data = Rm_SEM.tss),
   RuInt <- lm(dens.percomp.change ~
                  dens.percomp.y1 +
                  log10(Sal.spme) + 
@@ -369,18 +528,19 @@ RmBayLMLOG.sem <- psem(
                  log10(TP.spme) +
                  log10(TN.spme) + 
                  log10(Secc.spme) +
+                log10(TSSr.spme) +
                  (dens.percomp.y1:log10(Secc.spme)) +
                  (dens.percomp.y1:log10(Sal.spme)) + 
                  (dens.percomp.y1:log10(ChlA.spme)) + 
                  (log10(TP.spme):dens.percomp.y1) +
                  (log10(TN.spme):dens.percomp.y1) +
-                 (log10(Secc.spme):dens.percomp.y1),
-               data = Rm_SEM),
+                 (log10(Secc.spme):dens.percomp.y1) +
+                (log10(TSSr.spme):dens.percomp.y1),
+               data = Rm_SEM.tss),
   log10(TN.spme) %~~% log10(TP.spme),
-  log10(Secc.spme) %~~% log10(Sal.spme),
+  log10(Secc.spme) %~~% log10(ChlA.spme),
   log10(ChlA.spme) %~~% log10(Sal.spme),
-  log10(TP.spme) %~~% log10(Sal.spme),
-  data = Rm_SEM)
+  data = Rm_SEM.tss)
 
 summary(RmBayLMLOG.sem)
 coefs(RmBayLMLOG.sem)
@@ -421,25 +581,24 @@ RmBayLM.sem <- psem(
 
 summary(RmBayLM.sem)
 
-####TSS models#####
-
-##TSS predicted in this one. Great p = .276, 
-RmBayLOGsp.tss.sem <- psem(
+###tests
+#this one dont fit as well 
+RmBayLOGsp.tss8515.sem <- psem(
   TSSsp <- lme(log10(TSSr.spme) ~
-                  log10(TP.spme) +
-                  log10(TN.spme),
-                random = ~ 1 | STATION,
-        #        correlation = corARMA(form = ~ 1 | STATION, q = 2),
-                control = lmeControl(opt = "optim"),
-                data = Rm_SEM.tss),
+                 log10(TP.spme) +
+                 log10(TN.spme),
+               random = ~ 1 | STATION,
+               correlation = corARMA(form = ~ 1 | STATION, q = 2),
+               control = lmeControl(opt = "optim"),
+               data = Rm_SEM.tss85),
   ChlAsp <- lme(log10(ChlA.spme) ~
                   log10(TSSr.spme) +
                   log10(TP.spme) +
                   log10(TN.spme),
                 random = ~ 1 | STATION,
-           #     correlation = corARMA(form = ~ 1 | STATION, q = 2),
+                correlation = corARMA(form = ~ 1 | STATION, q = 2),
                 control = lmeControl(opt = "optim"),
-                data = Rm_SEM.tss),
+                data = Rm_SEM.tss85),
   Seccsp <- lme(log10(Secc.spme) ~
                   log10(TSSr.spme) +
                   log10(ChlA.spme) +
@@ -447,9 +606,9 @@ RmBayLOGsp.tss.sem <- psem(
                   log10(TN.spme) +
                   log10(TP.spme),
                 random = ~ 1 | STATION,
-          #      correlation = corARMA(form = ~ 1 | STATION, q = 2),
+                correlation = corARMA(form = ~ 1 | STATION, q = 2),
                 control = lmeControl(opt = "optim"),
-                data = Rm_SEM.tss),
+                data = Rm_SEM.tss85),
   RuInt <- lme(dens.percomp.change ~
                  dens.percomp.y1 +
                  log10(TSSr.spme) +
@@ -466,22 +625,19 @@ RmBayLOGsp.tss.sem <- psem(
                  (log10(TN.spme):dens.percomp.y1) +
                  (log10(Secc.spme):dens.percomp.y1),
                random = ~ 1 | STATION,
-          #     correlation = corARMA(form = ~ 1 | STATION, q = 2),
+               correlation = corARMA(form = ~ 1 | STATION, q = 2),
                control = lmeControl(opt = "optim"),
-               data = Rm_SEM.tss),
+               data = Rm_SEM.tss85),
   log10(TSSr.spme) %~~% log10(Sal.spme),
   log10(TN.spme) %~~% log10(TP.spme),
   #log10(Secc.spme) %~~% log10(Sal.spme),
   log10(ChlA.spme) %~~% log10(Sal.spme),
   log10(TP.spme) %~~% log10(Sal.spme),
-  data = Rm_SEM.tss)
+  data = Rm_SEM.tss85)
 
-summary(RmBayLOGsp.tss.sem)
-coefs(RmBayLOGsp.tss.sem)
-dSep(RmBayLOGsp.tss.sem)
-fisherC(RmBayLOGsp.tss.sem)
+summary(RmBayLOGsp.tss8515.sem)
 
-AIC(RmBayLOG_03.sem, RmBayLOG.tss.sem)
+
 
 ### BAY-WIDE STRUCTURAL EQUATION MODEL larfchunk #########
 
@@ -491,9 +647,9 @@ station.sem <- psem(
   chla <- lme(log10.chla ~
                 tp +
                 tn +
-                log10.WTEMP,
+                l  og10.WTEMP,
               random = ~ 1 | STATION/Year,
-              correlation = corARMA(form = ~ 1 | STATION/Year, q = 2),
+            correlation = corARMA(form = ~ 1 | STATION/Year, q = 2),
               control = lmeControl(opt = "optim"),
               data = sav_env),
   
@@ -588,15 +744,20 @@ dens.percomp.change ~ SAVArea.y1 +
 #SEM Notes: 
 #dont worry about the NAs here (in that, they arent removing any important data). some Subestuaries that i have Ruppia for just dont have any data
 #if ptp or ptn are in the SEM, may need to filter out the 0s bc they mess up the log10(). not that many points tho
-RmSubE_SEM <- RmSubE_Env %>% drop_na() 
-%>% filter(tssx.adj < 10000000)
+RmSubE_Env <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE_Env.csv")
+RmSubE982_Env <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE_Env982.csv")
+
+
+RmSubE_SEM <- RmSubE_Env %>% drop_na() %>% filter(tssx.adj < 10000000)
 RmSubE988_SEM <- RmSubE_Env982 %>% drop_na() ##USE THIS ONE
 
 %>% filter(ptn.adj > 0) %>% filter(tssx.adj > 0) %>% filter(tssx.adj < 10000000,) %>% filter(ptp.adj > 0) %>% filter(ptn.adj > 0) %>% filter(ptn.y1 > 0) #%>% filter(year > 1999)
 #filtering the ptn takes out some data that fucked the SEM so idk whats up here. 
 
+write_csv(RmSubE988_SEM, "/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE988_SEM.csv")
+write_csv(RmSubE988_SEM, "./data/RmSubE988_SEM.csv")
 
-#Rm_SEM.tss <- RmZone_Env.TSS %>% drop_na() %>% filter(Sal.spme > 0) %>% filter(Secc.spme > 0) %>% filter(ChlA.spme > 0) %>% filter(year > 1999)
+
 
 RmSubE_SEM  #868
 s
@@ -617,6 +778,7 @@ AIC(RmBayLOG.tss.sem, RmBayLOG_03.sem)
 
 
 ##start testing SEMS here 
+RmSubE988_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE988_SEM.csv")
 
 #this unlogged doesnt fit anymore with the trimmed dataset .016
 #FYI untrimmed and y1 does not work
@@ -712,18 +874,18 @@ summary(RmSubELOGtrim.sem)
 
 AIC(RmSubELOGtrim.sem, RmSubELOGtrimflowx.sem)
 
-#just N fits p = .84
+#just N fits p = .84, .97 on untrimmed. 
 #note- manure and fertilizer breaks all these models
 RmSubELOGtrim.N.sem <-  psem(
   tss <- lme(log10(tssx.adj) ~ flow + Agro,
              random = ~ 1 | SUBEST_ID,
              correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2), 
-             data = RmSubE988_SEM),
+             data = RmSubE_SEM),
   
   nptn <- lme(log10(nptn.adj) ~  flow + Agro ,
               random = ~ 1 | SUBEST_ID,
               correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
-              data = RmSubE988_SEM),
+              data = RmSubE_SEM),
   Ruchange <- lme(dens.percomp.change ~
                     dens.percomp.y1 +
                     flow +
@@ -734,9 +896,9 @@ RmSubELOGtrim.N.sem <-  psem(
                     dens.percomp.y1:log10(tssx.adj),
                   random = ~ 1 | SUBEST_ID,
                   correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
-                  data = RmSubE988_SEM), 
+                  data = RmSubE_SEM), 
   log10(nptn.adj) %~~% log10(tssx.adj), 
-  data = RmSubE988_SEM)
+  data = RmSubE_SEM)
 summary(RmSubELOGtrim.N.sem)
 
 #this model fits well but nptp isnt sig p = .9
@@ -766,12 +928,13 @@ RmSubELOGtrim.P.sem <- psem(
 summary(RmSubELOGtrim.P.sem)
 
 #flow*nptp/n in RuChange increases P to .7 but those terms arent sig. do that interaction term but take flow out of that model and its .619 and the NPTP and NPTN are stronger predictors
+#do
 RmSubELOGtrimflowx.sem <-  psem(
-  tss <- lme(log10(tssx.adj) ~ flow + Agro,
-             random = ~ 1 | SUBEST_ID,
-             correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2), 
-             data = RmSubE988_SEM),
-  
+ # tss <- lme(log10(tssx.adj) ~ flow + Agro,
+ #            random = ~ 1 | SUBEST_ID,
+  #           correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2), 
+  #           data = RmSubE988_SEM),
+  #
   nptp <- lme(log10(nptp.adj) ~ log10(fertilizerp_kg.adj) +log10(manurep_kg.adj)+ flow,
               random = ~ 1 | SUBEST_ID,
               correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
@@ -787,11 +950,11 @@ RmSubELOGtrimflowx.sem <-  psem(
                     #flow +
                     flow*log10(nptn.adj) +
                     flow*log10(nptp.adj) +
-                    log10(tssx.adj) +
+     #               log10(tssx.adj) +
                     #dens.percomp.y1:flow +
                     dens.percomp.y1:log10(nptp.adj)+
                     dens.percomp.y1:log10(nptn.adj)+
-                    dens.percomp.y1:log10(tssx.adj),
+     #               dens.percomp.y1:log10(tssx.adj),
                   random = ~ 1 | SUBEST_ID,
                   correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
                   data = RmSubE988_SEM), 
@@ -801,9 +964,9 @@ RmSubELOGtrimflowx.sem <-  psem(
   #log10(manuren_kg.adj) %~~% Agro,
   #Agro %~~% log10(fertilizerp_kg.adj),
   #Agro %~~% log10(manurep_kg.adj),
-  log10(nptn.adj) %~~% log10(nptp.adj),
-  log10(nptn.adj) %~~% log10(tssx.adj), 
-  log10(nptp.adj) %~~% log10(tssx.adj),
+  #log10(nptn.adj) %~~% log10(nptp.adj),
+  #log10(nptn.adj) %~~% log10(tssx.adj), 
+  #log10(nptp.adj) %~~% log10(tssx.adj),
   data = RmSubE988_SEM)
 summary(RmSubELOGtrimflowx.sem)
 
