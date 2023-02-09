@@ -3,15 +3,16 @@ title: "Ruppia-change"
 author: "Marc Hensel"
 date: "3/16/2021"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 
-```{r load packages}
+```{r load packages, echo=FALSE}
 #devtools::install_github("dill/beyonce")
-library(tidyverse); library(readxl); library(patchwork);
-library(randomForest); library(leaps); library(lme4)
-library(MuMIn); library(DHARMa); library(piecewiseSEM); library(nlme); library(semPlot); library(performance); library(beyonce); library(wesanderson); library(pixiedust); library(broom); library(geomtextpath)
+library(tidyverse); library(readxl); library(patchwork); library(lme4); library(DHARMa); library(piecewiseSEM); library(nlme); library(performance); library(geomtextpath)
 ```
+
 
 ```{r load in data from R drive}
 #setwd("~/Documents/R projects/Ruppia/Ruppia-Change")
@@ -22,6 +23,7 @@ SAV <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/
 Rm_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/Rm_SEM.csv")
 #Subestuaries
 RmSubE988_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE988_SEM.csv")
+RmSubE_Env982 <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE_Env982.csv")
 #Flow data
 connodisc <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/conno_discharge.csv")
 
@@ -32,23 +34,40 @@ SE <- function(x) sd(x) / sqrt(length(x)) # Create own function
 ```
 
 
-```{r}
+```{r run this chunk to create some tables}
 SAV_time.tbl = SAV %>% #group_by(Year) %>%
   mutate(RuChange = meanRu - lag(meanRu, n = 1L), 
          ZoChange = meanZo - lag(meanZo, n = 1L), 
          BaeChange = Hectares - lag(Hectares, n = 1L)) %>%
   select(year, meanRu, RuChange, meanZo, ZoChange, Hectares, BaeChange)
-  
-SAV_time.tbl %>% filter(RuChange > 0) %>% summarise(RuINC = mean(RuChange), RuINC_SE = SE(RuChange))
-SAV_time.tbl %>% filter(RuChange < 0) %>% summarise(RuDec = mean(RuChange), RuDEC_SE = SE(RuChange)) 
 
-SAV_time.tbl %>% filter(ZoChange > 0) %>% summarise(ZoINC = mean(ZoChange), ZoINC_SE = SE(ZoChange))
-SAV_time.tbl %>% filter(ZoChange < 0) %>% summarise(ZoDec = mean(ZoChange), ZoDEC_SE = SE(ZoChange)) 
+#% change from 84-18 in Widge, Eel, Total to the max recoveryd: 
+widgeRecoChange = (17952/2907)*100
+eelRecoChange = (7839/9740) *100
+baeRecoChange = (43736/15469) * 100 
+
+#do some Data wrangling to get the long term mean and variance around it
+SAV_stability = SAV %>% drop_na() %>% #drop the 1988 NA
+  mutate(long.meanRu = mean(meanRu, na.rm = T), long.meanZo = mean(meanZo, na.rm = T), 
+         long.meanBae = mean(Hectares, na.rm = T)) %>%
+  mutate(predRu = predict(lm(meanRu ~ Year, data = .)), #predicted, to fit the detrend
+         predZo = predict(lm(meanZo ~ Year, data = .)), 
+         predBae = predict(lm(Hectares ~ Year, data = .))) %>% 
+  mutate(detreRu = (meanRu - predRu) + long.meanRu , #plus final year's data
+         detreZo = (meanZo - predZo) + long.meanZo, 
+         detreBae = (Hectares - predBae) + long.meanBae) %>%
+  mutate(long.meandevRu = meanRu/long.meanRu, long.meandevZo = meanZo/long.meanZo, 
+         long.detredevRu = detreRu/long.meanRu, long.detredevZo = detreZo/long.meanZo, 
+         long.meandevBae = Hectares/long.meanBae, long.detredevBae = detreBae/long.meanBae) %>% 
+  mutate(varRu = var(meanRu, na.rm = T), varZo = var(meanZo, na.rm = T), 
+         varBae = var(Hectares, na.rm = T)) %>%
+  mutate(CVRu = sd(meanRu, na.rm = T)/mean(meanRu, na.rm = T), CVZo = sd(meanZo, na.rm = T)/ mean(meanZo, na.rm = T), 
+         CVBae = sd(Hectares, na.rm = T)/mean(Hectares, na.rm = T))
 
 ```
 
 
-```{r Fig 1a Baewide SAV change,echo=F}
+```{r Fig 2a Baewide SAV change,echo=F}
 
 baywideRuZoSAV <- 
   ggplot(data = SAV, aes(x = Year, y = Hectares)) + 
@@ -57,189 +76,100 @@ baywideRuZoSAV <-
   stat_summary(data = SAV, aes(x = year, y = meanRu/1000), color = "green", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
   stat_summary(data = SAV, aes(x = Year, y = meanZo/1000), color = "blue", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 1.5) +
   scale_x_continuous(n.breaks = 10) +
-  ylab("SAV Area \n(K HA)") +
-  theme_bw(base_size=18)  +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right", legend.title = element_blank())
+  ylab("SAV Area \n(K HA)") + xlab("") +
+  theme_bw(base_size=16)  +
+  theme(axis.title.y = element_text(size=14),
+    #    plot.margin = unit(c(1,1,1,1), "cm"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right", legend.title = element_blank())
 baywideRuZoSAV
 ```
 
-```{r Fig 1b Proportional SAV change,echo=F}
+```{r Fig 2a Proportional SAV change,echo=F}
 PropBay <- 
   ggplot(data = SAV) + 
   stat_summary(aes(x = Year, y = perBayZo),color = "blue", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
   stat_summary(aes(x = Year, y = perBayRu), color = "green", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2)+
   scale_colour_manual(labels = (c("Ruppia", "Zostera")), values=c("green", "blue")) +
   scale_x_continuous(n.breaks = 10) + 
-  #ylim(0, .6)+
-  ylab("Proportion of Baywide SAV \n (per species)") +
-  theme_bw(base_size=18)  +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        legend.position = "right", legend.title = element_blank())
+  ylim(0, .6)+
+  ylab("Proportion of Baywide\n SAV Area (per species)") + xlab("") +
+  theme_bw(base_size=16)  +
+  theme(axis.title.y = element_text(size=14),
+ #       plot.margin = unit(c(1,1,1,1), "cm"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right", legend.title = element_blank())
 PropBay
+```
+
+#Temp portion of Fig2a
+```{r Fig 2a TEMP on right axis SAV change,echo=F}
+SAVCommDensWQ_ForPred.with0s = vroom::vroom("/Volumes/savshare2/Current Projects/Predicting-SAV/data/communityDFs/SAVCommDensWQ_ForPredictions.with0s.csv")
+
+my.ylab = expression(atop(paste("Summer Temperature, "(mean, degree,"C"))))
+
+TempBay = 
+  SAVCommDensWQ_ForPred.with0s %>%
+  filter(SpCluster %in% c("Ruppia", "Zostera", "RuZo")) %>%
+  group_by(STATION, year) %>% 
+  mutate(year.y1 = year - 1) %>% select(year.y1, Temp.sumy1me) %>% 
+  filter(!year == "1985") %>% ungroup() %>% #outlier year (no sampling done in summer)
+    ggplot(data = .) + 
+    stat_summary(aes(x = year.y1, y = Temp.sumy1me), color = "dark red", fun.data = mean_cl_normal, 
+                 geom = "line", size = 1.5, alpha = .5) +
+    stat_summary(aes(x = year.y1, y = Temp.sumy1me), fun.data = mean_se, 
+                 geom = "pointrange", size = .5, alpha = .4, color = "dark red") +
+#   geom_smooth(aes(x = year, y = Temp.sumy1me), method = "lm", se = T, color = "black", size = 1) +
+    scale_x_continuous(n.breaks = 10) + 
+    scale_y_continuous(position = "right") +
+    ylab(my.ylab) + xlab("") +
+    theme_bw(base_size=16)  +
+  theme(axis.title.y = element_text(size=14),
+ #       plot.margin = unit(c(1,1,1,1), "cm"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right", legend.title = element_blank())
+TempBay
+
+
+
+```
+
+
+#Figure 2c Variance around long term mean over time
+
+```{r Figure 2c variance}
+VarBae = 
+ggplot(data = SAV_stability) + 
+  stat_summary(aes(x = year, y = long.detredevRu), color = "green", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2.3) +
+  stat_summary(aes(x = Year, y = long.detredevZo), color = "blue", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2.3) +
+    stat_summary(aes(x = Year, y = long.detredevBae), color = "black", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 1.3, alpha = .5) +
+  geom_hline(yintercept=1, linetype="dashed", color = "red", size = .8) +
+  scale_x_continuous(n.breaks = 10) +
+  labs(y = expression(paste("Deviance around long-term mean \n of total Baywide areal cover")), x = "Year") +
+  ylim(0,2) +
+  theme_bw(base_size=16)  +
+  theme(axis.title.y = element_text(size=14),
+        plot.margin = unit(c(1,1,1,1), "cm"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right", legend.title = element_blank())
+VarBae
+#stat test
+ks.test(SAV_stability$long.meandevRu, SAV_stability$long.meandevZo)
+
 ```
 
 
 ```{r, build Fig 1}
 SAV_time.tbl
 
-Fig1patch =  (PropBay / baywideRuZoSAV) + plot_annotation(tag_levels = 'A')
+Fig1patch =  PropBay / baywideRuZoSAV / VarBae + 
+    theme(plot.margin = unit(c(1,1,1,1), "cm")) #+
+  #plot_annotation(tag_levels = 'A') & 
+  #theme(plot.tag = element_text(size = 8))
+
 Fig1patch
 
-```
-
-```{r build alt Fig1}
-
-BaeDensWQ_69 = read.csv("~/Documents/R projects/Predicting-SAV/data/BaeDensWQ_69.csv")
-
-RuZo_temps = BaeDensWQ_69 %>% 
-  filter(clust.group == "RuZo") %>% select(year, Temp.summax, Temp.growy1max, Temp.summe, Temp.growy1me, Temp.summed, Temp.growy1med) %>% 
-  rename(Year = year) %>%
-  group_by(Year) %>% summarise(across(everything(), ~mean(.x, na.rm = T))) %>% 
-  filter(Year < 2020) %>% left_join(SAV)
-write.csv(RuZo_temps, "~/Documents/R projects/Ruppia/Ruppia-Change/data/RuZo_temps.csv")
-
-RuZo_temps = BaeDensWQ_69 %>% 
-  filter(clust.group == "RuZo") %>% select(year, STATION, Temp.summax, Temp.growy1max, Temp.summe, Temp.growy1me, Temp.summed, Temp.growy1med) %>% 
-  rename(Year = year) %>%
-  group_by(Year, STATION) %>% summarise(across(everything(), ~mean(.x, na.rm = T))) %>% 
-  filter(Year < 2020) %>% left_join(SAV)
-write.csv(RuZo_temps, "~/Documents/R projects/Ruppia/Ruppia-Change/data/RuZo_temps.csv")
-
-RuZoTempGraph = ggplot(data = RuZo_temps) +
-  stat_summary(aes(x = Year, y = Temp.summed), color = "orange", size = 1, geom = "line") + 
-  scale_x_continuous(n.breaks = 10) + 
-  ylab("Max Summer Temp (C)") +
-  theme_bw(base_size=14)  +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        legend.position = "right", legend.title = element_blank())
-
-tempthresh = 26
-#good colors, bad smoothing
-PropBayTemp <- 
-  ggplot(data = SAV) + 
-  stat_summary(data = RuZo_temps, aes(x = Year, y = Temp.summax), color = "orange", size = 2, geom = "line") +
-  geom_rect(data = RuZo_temps, aes(xmin = Year, xmax = Year, 
-                 ymin = -Inf, ymax = Inf, 
-                 color = Temp.summed), size = 8, alpha = .000000000000000001,
-                 show.legend = FALSE) +
-    stat_summary(aes(x = Year, y = perBayZo*100),color = "white", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
-  stat_summary(aes(x = Year, y = perBayRu*100), color = "black", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2)+
-  scale_colour_gradient(low = "blue", high = "red") +
-  scale_x_continuous(n.breaks = 10) + 
-  theme_bw(base_size=14)  +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        legend.position = "right", legend.title = element_blank())
-PropBayTemp_2axis = ggplot(data = SAV) + 
-  stat_summary(data = RuZo_temps, aes(x = Year, y = Temp.summax), color = "orange", size = 1, geom = "line") + 
-    ylab("Max Summer Temp (C)") +
-  scale_y_continuous(#limits= c(23,30), 
-                     sec.axis = sec_axis(~., name="Proportion of Baywide SAV \n (per species)")) +
-  stat_summary(aes(x = Year, y = perBayZo*100),color = "blue", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
-  stat_summary(aes(x = Year, y = perBayRu*100), color = "green", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2)+
-  scale_colour_manual(labels = (c("Ruppia", "Zostera")), values=c("green", "blue")) +
-  scale_x_continuous(n.breaks = 10) + 
-  theme_bw(base_size=18)  +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        legend.position = "right", legend.title = element_blank())
-
-
-scaleFactor <- max(RuZo_temps$perBayZo, na.rm = T)*100 / max(RuZo_temps$Temp.summax, na.rm = T)
-scaleFactor = 1.9
-
-ggplot(RuZo_temps, aes(x=Year)) +
-  geom_line(aes(y = perBayZo*100),color = "blue") +
-  geom_line(aes(y = perBayRu*100),color = "green") +
-  geom_line(aes(y=Temp.summax * scaleFactor), col="red") +
-  scale_y_continuous(name="Proportion of Baywide SAV \n (per species)", 
-                     sec.axis=sec_axis(~./scaleFactor, name="Max Summer Temp (C)")) +
-  theme(
-    axis.title.y.left=element_text(color="black"),
-    axis.text.y.left=element_text(color="black"),
-    axis.title.y.right=element_text(color="red"),
-    axis.text.y.right=element_text(color="red")
-  )
-
-ggplot() + 
-  geom_bar(mapping = aes(x = dt$when, y = dt$numinter), stat = "identity", fill = "grey") +
-  geom_line(mapping = aes(x = dt$when, y = dt$prod*5), size = 2, color = "blue") + 
-  scale_x_date(name = "Day", labels = NULL) +
-  scale_y_continuous(name = "Interruptions/day", 
-    sec.axis = sec_axis(~./5, name = "Productivity % of best", 
-      labels = function(b) { paste0(round(b * 100, 0), "%")})) + 
-  theme(
-      axis.title.y = element_text(color = "grey"),
-      axis.title.y.right = element_text(color = "blue"))
-
-
-  ggplot(data = SAV) + 
-  geom_rect(data = RuZo_temps, aes(xmin = Year, xmax = Year, 
-                 ymin = -Inf, ymax = Inf, 
-                 color = Temp.summed), size = 8, alpha = .000000000000000001,
-                 show.legend = T) +
- #   stat_summary(data = RuZo_temps, aes(x = Year, y = Temp.summed), color = "green", size = 2, geom = "line", fun.data = mean_se) +
-    stat_summary(aes(x = Year, y = perBayZo*100),color = "blue", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
-  stat_summary(aes(x = Year, y = perBayRu*100), color = "green", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2)+
-  scale_colour_gradientn(colours = wes_palette("Zissou1")) +
-  scale_x_continuous(n.breaks = 10) + 
- # scale_y_continuous(limits= c(23,30), 
- #                    sec.axis = sec_axis(~.*3, name="Prop Bay")) +
-  #ylim(0, .6)+
-  ylab("Proportion of Baywide SAV \n (per species)") +
-  theme_bw(base_size=14)  +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        legend.position = "right", legend.title = element_blank())
-
-Fig1_alt =  (baywideRuZoSAV / PropBay / RuZoTempGraph) + plot_annotation(tag_levels = 'A')
-
-
+TempBay
 
 ```
 
-
-
-
-
-
-
-```{r, some RmZone metrics}
-
-Rm_SEM %>% group_by(STATION) %>% summarize(maxA = max(SAVArea)) %>% ungroup() %>% summarize(maxStationA = sum(maxA))
-
-```
-
-
-
-```{plot density change over time}
-
-RuChange_Station = 
-  ggplot(data = Rm_SEM) + 
-  stat_summary(aes(x = year, y = dens.percomp.change), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "black") +
-  stat_summary(aes(x = year, y = dens.percomp.change), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = 1.5, color = "black") +
-  #geom_smooth(aes(x = year, y = dens.percomp.change, group = STATION, color = STATION), method = "lm", alpha = 0.5, size = .5) +
-  geom_hline(yintercept = 0, color = "red") +
-  #ylim(-.3, .3) +
-  theme_bw(base_size=20) + 
-  ylab("Ruppia change") + 
-  scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
-
-RuArea_Station = 
-  ggplot(data = Rm_SEM) + 
-  stat_summary(aes(x = year, y = dens.weight.mean), fun.data = mean_cl_normal, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "black") +
-  stat_summary(aes(x = year, y = dens.weight.mean), fun.data = mean_se, geom = "line", fun.args = list(mult = 1), size = 1.5, color = "black") +
-  theme_bw(base_size=20) + 
-  ylab("Widgeongrass HA \n (dens weight mean/station)") + 
-  scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
-
-```
-
-
+#SEM for Mainstem Analysis
 ```{r Stations SEM}
 #Filter out stations that had 0s three years in a row
 RmSEMZeros = Rm_SEM  %>% group_by(STATION) %>%
@@ -297,7 +227,7 @@ summary(RmSEMNo0LOG.sem)
 RmBayLOG.coeftab = coefs(RmSEMNo0LOG.sem)
 dSep(RmSEMNo0LOG.sem)
 fisherC(RmSEMNo0LOG.sem)
-r.squaredGLMM(RmSEMNo0LOG.sem)
+
 
 ```
 
@@ -416,12 +346,14 @@ summary(RmSEMNoIntLOG.sem)
 ```
 
 
-#Figure 2
+#Subestuaries SEM
 ```{r Subestuaries SEM}
 
-RmSubE988_SEM = RmSubE988_SEM %>% 
-  filter(ptp.adj > 0)
+RmSubE988_SEM = RmSubE_Env982 %>% 
+  filter(ptp.adj > 0) %>% drop_na() #piecewiseSEM doesnt like NAs
  # mutate(ptp.adj = ptp.adj + 0.000000000001) #filter out these 20 points that make you log10(0)
+
+RmSubE_Env982
 
 RmSubEN.sem <-  psem(
   tss <- lme(log10(tssx.adj) ~ log10(flow) + Agro + Developed,
@@ -459,41 +391,12 @@ dSep(RmSubEN.sem)
 fisherC(RmSubEN.sem)
 #r.squaredGLMM(RmSubELOGtrim.N.sem)
 
+
+#  Fisher.C df P.Value
+#    9.626 14   0.789
+
+
 ```
-
-```{r NoINT Subestuaries test}
-
-RmSubENoInt.sem <-  psem(
-  tss <- lme(log10(tssx.adj) ~ log10(flow) + Agro + Developed,
-             random = ~ 1 | SUBEST_ID,
-             correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2), 
-             data = RmSubE988_SEM),
-  nptn <- lme(log10(nptn.adj) ~  log10(flow) + Agro +Developed ,
-              random = ~ 1 | SUBEST_ID,
-              correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
-              data = RmSubE988_SEM),
-  ptp <- lme(log10(ptp.adj) ~  log10(flow) +  Developed + Agro,
-             random = ~ 1 | SUBEST_ID,
-             correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
-             data = RmSubE988_SEM),
-  Ruchange <- lme(dens.percomp.change ~
-                    dens.percomp.y1 +
-                    log10(flow) +
-                    log10(nptn.adj) +
-                    log10(tssx.adj) +
-                    log10(ptp.adj),
-                  random = ~ 1 | SUBEST_ID,
-                  correlation = corARMA(form = ~ 1 | SUBEST_ID, q = 2),
-                  data = RmSubE988_SEM), 
-  log10(nptn.adj) %~~% log10(tssx.adj),
-  #log10(ptp.adj) %~~% log10(tssx.adj),
-  #log10(nptn.adj) %~~% log10(ptp.adj),
-  data = RmSubE988_SEM)
-summary(RmSubENoInt.sem)
-
-#r.squaredGLMM(RmSubELOGtrim.N.sem)
-```
-
 
 
 
@@ -527,35 +430,129 @@ HeightStat_dust_table
 
 ```
 
+#Flow and Change, Fig 4
+```{r build dam flo data}
+dam_flow_sp <- connodisc %>% filter(season == "Spring") %>% 
+  group_by(year_surv) %>% 
+  summarize(me_flo_sp = mean(discharge_cufs), max_flo_sp = max(discharge_cufs), min_flo_sp = min(discharge_cufs)) %>% rename(Year = year_surv)
+dam_flow_wi <- connodisc %>% filter(season == "Winter") %>% 
+  group_by(year_surv) %>% 
+  summarize(me_flo_wi = mean(discharge_cufs), max_flo_wi = max(discharge_cufs), min_flo_wi = min(discharge_cufs)) %>% rename(Year = year_surv)
+dam_flow_gr <- connodisc %>% filter(season %in% c("Spring", "Summer")) %>% 
+  group_by(year_surv) %>% 
+  summarize(me_flo_gr = mean(discharge_cufs), max_flo_gr = max(discharge_cufs), min_flo_gr = min(discharge_cufs)) %>% rename(Year = year_surv)
 
-
-```{r Figure 4 Flow and Ruppia Change}
-#Trying to get fig 4 right, as well
-dam_flow_sp <- connodisc %>% filter(between(month_nu, 3,5)) %>% group_by(year_nu) %>% summarize(me_flo_sp = mean(discharge_cufs), max_flo_sp = max(discharge_cufs), min_flo_sp = min(discharge_cufs)) %>% rename(Year = year_nu)
-dam_flow_wi <- connodisc %>% filter(month_nu %in% c(1,2, 11, 12)) %>% group_by(year_nu) %>% summarize(me_flo_wi = mean(discharge_cufs), max_flo_wi = max(discharge_cufs), min_flo_wi = min(discharge_cufs)) %>% rename(Year = year_nu)
-dam_flow <- connodisc %>% group_by(year_nu) %>% summarize(me_flo = mean(discharge_cufs), max_flo = max(discharge_cufs), min_flo = min(discharge_cufs)) %>% rename(Year = year_nu) %>% left_join(dam_flow_sp) %>% left_join(dam_flow_wi)
+dam_flow <- connodisc %>% 
+  group_by(year_surv) %>% 
+  summarize(me_flo = mean(discharge_cufs), max_flo = max(discharge_cufs), min_flo = min(discharge_cufs)) %>% 
+  rename(Year = year_surv) %>% 
+  left_join(dam_flow_sp) %>% left_join(dam_flow_wi) %>% left_join(dam_flow_gr) %>%
+  full_join(SAV %>% select(Year, Hectares, meanRu, meanZo)) %>%
+  mutate(meanRu.change = meanRu - lag(meanRu))
 
 ruSTA_me <- Rm_SEM.No0 %>% group_by(year, STATION) %>% summarize(meSTA_ruchange = mean(dens.percomp.change), meSTA_rudwm = mean(dens.weight.mean), meSTA_Area = mean(SAVArea), maxSTA_ruchange = max(dens.percomp.change)) %>% rename(Year = year)
 
-ruSUB_me <- RmSubE988_SEM %>% group_by(Year) %>% summarize(meSUB_ruchange = mean(dens.percomp.change), meSUB_rudwm = mean(dens.weight.mean), meSUB_Area = mean(SAVArea))
+#using this for Fig4 so dont delete yet
+floru <- full_join(dam_flow, ruSTA_me) %>% select(Year, STATION, meSTA_ruchange, me_flo_wi, me_flo_sp, me_flo_gr, me_flo) %>% drop_na() 
+
+Flow_RuppiaBae.df = dam_flow %>% drop_na(Year) 
+```
 
 
-floru <- full_join(dam_flow, ruSTA_me) %>% select(Year, STATION, meSTA_ruchange, me_flo_wi, me_flo_sp) %>% drop_na() 
+```{r Fig4 Stats ru change mean flow Sus }
 
+flow_Rudwm.lm <- lm(meanRu.change ~ log10(me_flo_sp) + log10(me_flo_wi) + log10(me_flo) , data = Flow_RuppiaBae.df)
+performance(flow_Rudwm.lm)
+car::Anova(flow_Rudwm.lm, test.statistic = "F")
+check_model(flow_Rudwm.lm)
+
+```
+```{r build Figure 4}
+Figure4 = 
+  Flow_RuppiaBae.df %>% 
+  mutate(me_flo = me_flo / 35.315) %>% #convert cubic feet to cubic meters per second
+ggplot(data = .) + #%>% filter(!year== 2018)) +
+  geom_hline(yintercept=0, linetype="dashed", color = "red", size = .8) +
+ # geom_text(x = 55000, y = 5000, label = lm_eqn(Flow_RuppiaBae.df, 'meanRu.change', 'me_flo'), parse = TRUE) +
+  stat_summary(aes(x = me_flo, y = meanRu.change), 
+               , size = 1.2,
+               geom = "pointrange", fun.data = "mean_se") + 
+  stat_smooth(aes(x = me_flo, y = meanRu.change), 
+              color = "black", size = 1.4, method = "lm") + 
+  xlab("Mean annual flow from mainstem (cu m/sec)") +
+  ylab("Annual widgeongrass change (ha)") +
+  scale_y_continuous(breaks = c(-7500, -5000, -2500, 0, 2500, 5000, 7500), labels = scales::label_comma()) +
+  theme_bw(base_size = 20) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "", 
+        plot.margin = unit(c(1,1,1,1), "cm")) 
+
+Figure4
+```
+
+Ruflo = ggplot(data = Flow_RuppiaBae.df) + 
+  geom_hline(yintercept=0, linetype="dashed", color = "red", size = .8) +
+  stat_summary(aes(x = Year, y = meanRu.change), 
+               , size = 1.2,
+               geom = "pointrange", fun.data = "mean_se") + 
+  stat_summary(aes(x = Year, y = meanRu.change), 
+               , size = 1.2,
+               geom = "line", fun.data = "mean_se") + 
+  xlab("Year") +
+  ylab("Annual widgeongrass change (ha)") +
+  theme_bw(base_size = 20) 
+  
+Susflo = ggplot(data = Flow_RuppiaBae.df) + 
+  stat_summary(aes(x = Year, y = me_flo), 
+               , size = 1.2,
+               geom = "pointrange", fun.data = "mean_se") + 
+  stat_summary(aes(x = Year, y = me_flo), 
+               , size = 1.2,
+               geom = "line", fun.data = "mean_se") +  
+  xlab("Year") +
+  ylab("Mean flow") +
+  theme_bw(base_size = 20)
+  
+  Ruflo / Susflo
+  
+
+#OLD FIG 4 stuff below: 
+```{r Build Fig 4 dataset}
+#Spring, Growing, Winter, Annual flow from the Connowingo Dam
+dam_flow_sp <- connodisc %>% filter(season == "Spring") %>% group_by(year_surv) %>% summarize(me_flo_sp = mean(discharge_cufs), max_flo_sp = max(discharge_cufs), min_flo_sp = min(discharge_cufs)) %>% rename(Year = year_surv)
+dam_flow_wi <- connodisc %>% filter(season == "Winter") %>% group_by(year_surv) %>% summarize(me_flo_wi = mean(discharge_cufs), max_flo_wi = max(discharge_cufs), min_flo_wi = min(discharge_cufs)) %>% rename(Year = year_surv)
+dam_flow_gr <- connodisc %>% filter(season %in% c("Spring", "Summer")) %>% group_by(year_surv) %>% summarize(me_flo_gr = mean(discharge_cufs), max_flo_gr = max(discharge_cufs), min_flo_gr = min(discharge_cufs)) %>% rename(Year = year_surv)
+
+dam_flow <- connodisc %>% group_by(year_surv) %>% summarize(me_flo = mean(discharge_cufs), max_flo = max(discharge_cufs), min_flo = min(discharge_cufs)) %>% rename(Year = year_surv) %>% left_join(dam_flow_sp) %>% left_join(dam_flow_wi) %>% left_join(dam_flow_gr)
+
+
+
+ruSTA_me <- Rm_SEM.No0 %>% group_by(year, STATION) %>% 
+  summarize(meSTA_ruchange = mean(dens.percomp.change), 
+            meSTA_rudwm = mean(dens.weight.mean), 
+            meSTA_Area = mean(SAVArea), 
+            maxSTA_ruchange = max(dens.percomp.change)) %>% rename(Year = year)
+
+
+floru <- full_join(dam_flow, ruSTA_me) %>% select(Year, STATION, meSTA_ruchange, me_flo_wi, me_flo_sp, me_flo_gr, me_flo) %>% drop_na() 
+
+```
+
+
+```{r Figure 4 Flow and Ruppia Change}
 Figure4 = 
 ggplot(data = floru) + #%>% filter(!year== 2018)) +
   geom_hline(yintercept=0, linetype="dashed", color = "red", size = .8) +
   stat_summary(aes(x = me_flo_wi, y = meSTA_ruchange), 
                color = "cornflowerblue", size = 1.2,
                geom = "pointrange", fun.data = "mean_se") + 
-  geom_smooth(aes(x = me_flo_wi, y = meSTA_ruchange), 
-              color = "cornflowerblue", size = 1.4, method = "lm") +
+  stat_smooth(aes(x = me_flo_wi, y = meSTA_ruchange), 
+              color = "cornflowerblue", size = 1.4, method = "lm")+ #, formula = y ~poly(x,2) ) +
   stat_summary(aes(x = me_flo_sp, y = meSTA_ruchange), 
                color = "chartreuse3", size = 1.2,
                geom = "pointrange", fun.data = "mean_se") + 
-  geom_smooth(aes(x = me_flo_sp, y = meSTA_ruchange), 
+  stat_smooth(aes(x = me_flo_sp, y = meSTA_ruchange), 
               color = "chartreuse3", size = 1.4,
-              method = "lm") +
+              method = "lm") +#, formula = y ~poly(x,2) ) +
   geom_labelsmooth(label = "Winter",
                    aes(x = me_flo_wi, y = meSTA_ruchange), color = "cornflowerblue",
                    method = "lm", boxlinewidth = 2, size = 8) +
@@ -571,34 +568,76 @@ ggplot(data = floru) + #%>% filter(!year== 2018)) +
 Figure4
 ```
 
+```{r Figure 4 flow}
+Figure4_log = 
+ggplot(data = floru) + #%>% filter(!year== 2018)) +
+  geom_hline(yintercept=0, linetype="dashed", color = "red", size = .8) +
+  stat_summary(aes(x = log10(me_flo_wi), y = meSTA_ruchange), 
+               color = "cornflowerblue", size = 1.2,
+               geom = "pointrange", fun.data = "mean_se") + 
+  stat_smooth(aes(x = log10(me_flo_wi), y = meSTA_ruchange), 
+              color = "cornflowerblue", size = 1.4, method = "lm") + #, formula = y ~poly(x,2) ) +
+  stat_summary(aes(x = log10(me_flo_sp), y = meSTA_ruchange), 
+               color = "chartreuse3", size = 1.2,
+               geom = "pointrange", fun.data = "mean_se") + 
+  stat_smooth(aes(x = log10(me_flo_sp), y = meSTA_ruchange), 
+              color = "chartreuse3", size = 1.4,
+              method = "lm") +#, formula = y ~poly(x,2) ) +
+  geom_labelsmooth(label = "Winter",
+                   aes(x = log10(me_flo_wi), y = meSTA_ruchange), color = "cornflowerblue",
+                   method = "lm", boxlinewidth = 2, size = 8) +
+  geom_labelsmooth(label = "Spring",
+                   aes(x = log10(me_flo_sp), y = meSTA_ruchange), color = "chartreuse3",
+                   method = "lm", boxlinewidth = 2, size = 8) +
+  xlab("Mean seasonal flow from mainstem (cu ft/s)") +
+  ylab("Mean widgeongrass change \n (per site)") +
+ # scale_x_continuous(breaks = c(20000, 40000, 60000, 80000, 100000, 120000), labels = scales::label_comma()) +
+  theme_bw(base_size = 20) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
+
+Figure4_log
+```
+
+
 
 ```{r, conno flow stats}
-#USE THE ANNUAL DATA FOR THE STATS, repetitive stations is for visualization of the variation in change, but doesnt make sense to model! 
+#USE THE ANNUAL DATA FOR THE STATS
+#repetitive stations is for visualization of the variation in change, so there is an error around each point, but doesnt make sense to model! 
+
 ruSTA_me_BAY <- Rm_SEM.No0 %>% group_by(year) %>% 
-  summarize(meSTA_ruchange = mean(dens.percomp.change)) %>% 
+  summarize(meSTA_ruchange = mean(dens.percomp.change), 
+            sumSTA_ruchange = sum(dens.weight.mean) - sum(dens.weight.mean.y1)) %>% 
   rename(Year = year)
 
-floru_BAY <- full_join(dam_flow, ruSTA_me_BAY) %>% select(Year,  meSTA_ruchange, me_flo_wi, me_flo_sp) %>% drop_na()
+floru_BAY <- full_join(dam_flow, ruSTA_me_BAY) %>% select(Year,  meSTA_ruchange, sumSTA_ruchange, me_flo_wi, me_flo_sp, me_flo_gr, me_flo) %>% drop_na()
 
-flow_Ruchange.lm <- lm(meSTA_ruchange ~ me_flo_sp + me_flo_wi + I(me_flo_wi^2) + I(me_flo_sp^2), data = floru_BAY) #%>% filter(!Year== 2018))
+#.27
+flow_Ruchange.lm <- lm(log10(dens.tot_STA) ~ log10(me_flo_sp) + log10(me_flo_wi) , data = Flow_RuppiaBae.df) #%>% filter(!Year== 2018))
 car::Anova(flow_Ruchange.lm)
-check_model(flow_Ruchange.lm)
 performance(flow_Ruchange.lm)
-r2(flow_Ruchange.lm)
 
-flow_Rudwm.lm <- glm(meSTA_ruchange ~ log10(me_flo_sp) + log10(me_flo_wi) , family = gaussian, data = floru)
+#simple but .25
+meflo_sumRuchange.lm <- lm(sumSTA_ruchange ~  log10(me_flo), data = floru_BAY)
+car::Anova(meflo_sumRuchange.lm)
+check_model(meflo_sumRuchange.lm)
+performance(meflo_sumRuchange.lm)
+
+flow_Ruchange.nlm <- lm(meSTA_ruchange ~ me_flo_sp + me_flo_wi + I(me_flo_sp^2) + I(me_flo_wi^2) , data = floru_BAY) 
+car::Anova(flow_Ruchange.nlm)
+check_model(flow_Ruchange.nlm)
+performance(flow_Ruchange.nlm)
+r2(flow_Ruchange.nlm)
+
+AIC(flow_Ruchange.lm, flow_Ruchange.nlm, flow_Rudwm.lm)
+
+#this one fits best, but IDK seems kinda fucked up
+flow_Rudwm.lm <- glm(log10(sumSTA_ruchange) ~ log10(me_flo_sp) * log10(me_flo_wi) * log10(me_flo_gr) * log10(me_flo) , family = gaussian, data = floru_BAY)
 car::Anova(flow_Rudwm.lm)
 check_model(flow_Rudwm.lm)
 performance(flow_Rudwm.lm)
 r2(flow_Rudwm.lm)
 
-flow_Ruchange.me <- lmer(meSTA_ruchange ~ log10(me_flo_sp) + log10(me_flo_wi) + (1|STATION), data = floru)
-car::Anova(flow_Ruchange.lm)
-check_model(flow_Ruchange.lm)
-r2(flow_Ruchange.me)
 
-
-#AIC(flow_Ruchange.lm, flow_Rudwm.lm)
 ```
 
 
@@ -682,7 +721,7 @@ RuArea_Station / conno_annual
 #WQ over time (station)
 ```{r, WQ over time (station)}
 Rudens.time =     
-ggplot(data = Rm_SEM) + 
+ggplot(data = Rm_SEM.No0) + 
   #stat_summary(aes(x = year, y = dens.percomp), fun.data = mean_se, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "black") +
     stat_summary(aes(x = year, y = SAVArea), fun.data = mean_se, geom = "smooth", alpha = 0.5, size = 1.2, color = "black") + 
   scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
@@ -690,16 +729,17 @@ ggplot(data = Rm_SEM) +
   labs(y = "Ruppia Area (HA)", x = "Year") + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
 Sal.time = 
-  ggplot(data = Rm_SEM) + 
+  ggplot(data = Rm_SEM.No0) + 
   #stat_summary(aes(x = year, y = Sal.spme), fun.data = mean_se, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "dark red") +
   stat_summary(aes(x = year, y = Sal.spme), fun.data = mean_se, geom = "smooth", alpha = 0.5, size = 1.2, color = "grey") + 
- # ylim(0,1) +
+  stat_summary(aes(x = year, y = Sal.sumy1me), fun.data = mean_se, geom = "smooth", alpha = 0.5, size = 1.2, color = "yellow") + 
+    stat_summary(aes(x = year, y = Sal.spmin), fun.data = mean_se, geom = "smooth", alpha = 0.5, size = 1.2, color = "blue") + 
   scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
   theme_bw(base_size=18) + 
   labs(y = "Salinity Spring", x = "Year") + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
 ChlA.time = 
-  ggplot(data = Rm_SEM) + 
+  ggplot(data = Rm_SEM.No0) + 
   #stat_summary(aes(x = year, y = ChlA.spme), fun.data = mean_se, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "dark green") +
   stat_summary(aes(x = year, y = ChlA.spme), fun.data = mean_se, geom = "smooth", alpha = 0.5, size = 1.2, color = "dark green") + 
  # ylim(0,1) +
@@ -709,7 +749,7 @@ ChlA.time =
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
 
 TN.time = 
-  ggplot(data = Rm_SEM) + 
+  ggplot(data = Rm_SEM.No0) + 
   #stat_summary(aes(x = year, y = TN.spme), fun.data = mean_se, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "green") +
   stat_summary(aes(x = year, y = TN.spme), fun.data = mean_se, geom = "smooth", alpha = 0.5, size = 1.2, color = "green") + 
  # ylim(0,1) +
@@ -719,7 +759,7 @@ TN.time =
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
 
 TP.time = 
-  ggplot(data = Rm_SEM) + 
+  ggplot(data = Rm_SEM.No0) + 
   #stat_summary(aes(x = year, y = TP.spme), fun.data = mean_se, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "dark red") +
   stat_summary(aes(x = year, y = TP.spme), fun.data = mean_se, geom = "smooth", alpha = 0.5, size = 1.2, color = "dark red") + 
  # ylim(0,1) +
@@ -728,9 +768,94 @@ TP.time =
   labs(y = "TP Spring", x = "Year") + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
 
+Temp.time = 
+  Rm_SEM.No0 %>% 
+  group_by(STATION, year) %>% 
+  mutate(year.y1 = year - 1) %>% select(year.y1, Temp.sumy1me) %>%
+  ggplot(data = .) + 
+  #stat_summary(aes(x = year, y = Temp.spme), fun.data = mean_se, geom = "pointrange", fun.args = list(mult = 1), size = .9, color = "dark red") +
+  stat_summary(aes(x = year, y = Temp.sumy1me), fun.data = mean_se, geom = "smooth", alpha = 0.5, size = 1.2, color = "dark red") + 
+ # ylim(0,1) +
+  scale_x_continuous(breaks=c(1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020)) +
+  theme_bw(base_size=18) + 
+  labs(y = "Summer Temp (oC)", x = "Year") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
+Temp.time
 
 time.figs = Rudens.time / Sal.time /ChlA.time / TN.time / TP.time
+
+Rudens.time / Sal.time
 ```
+
+  ggplot(data = Rm_SEM.No0) + 
+  stat_summary(aes(y = dens.weight.mean, x = Sal.spme), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "cyan1") + 
+    stat_smooth(aes(y = dens.weight.mean, x = Sal.spme), method = "gam", alpha = 0.8, size = 1, color = "cyan1") + 
+  stat_summary(aes(y = dens.weight.mean, x = Sal.sumy1me), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "yellow") + 
+      stat_smooth(aes(y = dens.weight.mean, x = Sal.sumy1me), method = "gam", alpha = 0.8, size = 1, color = "yellow") + 
+    stat_summary(aes(y = dens.weight.mean, x = Sal.spmin), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "blue") + 
+          stat_smooth(aes(y = dens.weight.mean, x = Sal.spmin), method = "gam", alpha = 0.8, size = 1, color = "blue") + 
+  theme_bw(base_size=18) + 
+  labs(y = "SAV dens.weight.mean", x = "Salinity") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
+  
+  ggplot(data = Rm_SEM.No0) + 
+  stat_summary(aes(y = SAVArea, x = Sal.spme), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "cyan1") + 
+    stat_smooth(aes(y = SAVArea, x = Sal.spme), method = "gam", alpha = 0.8, size = 1, color = "cyan1") + 
+  stat_summary(aes(y = SAVArea, x = Sal.sumy1me), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "yellow") + 
+      stat_smooth(aes(y = SAVArea, x = Sal.sumy1me), method = "gam", alpha = 0.8, size = 1, color = "yellow") + 
+    stat_summary(aes(y = SAVArea, x = Sal.min), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "blue") + 
+          stat_smooth(aes(y = SAVArea, x = Sal.min), method = "gam", alpha = 0.8, size = 1, color = "blue") + 
+      stat_summary(aes(y = SAVArea, x = Sal.max), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "red") + 
+      stat_smooth(aes(y = SAVArea, x = Sal.max), method = "gam", alpha = 0.8, size = 1, color = "red") + 
+  theme_bw(base_size=18) + 
+  labs(y = "SAV Area", x = "Salinity") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
+  
+    ggplot(data = Rm_SEM.No0 %>% filter(dens.change > 100)) + 
+  stat_summary(aes(y = dens.change, x = TN.spme), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "cyan1") + 
+    stat_smooth(aes(y = dens.change, x = TN.spme), method = "gam", alpha = 0.8, size = 1, color = "cyan1") + 
+  stat_summary(aes(y = dens.change, x = TN.sumy1me), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "yellow") + 
+      stat_smooth(aes(y = dens.change, x = TN.sumy1me), method = "gam", alpha = 0.8, size = 1, color = "yellow") + 
+  theme_bw(base_size=18) + 
+  labs(y = "SAV dens.change", x = "TN") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
+  
+      ggplot(data = Rm_SEM.No0 %>% filter(dens.change < -100)) + 
+  stat_summary(aes(y = dens.change, x = TN.spme), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "cyan1") + 
+    stat_smooth(aes(y = dens.change, x = TN.spme), method = "gam", alpha = 0.8, size = 1, color = "cyan1") + 
+  stat_summary(aes(y = dens.change, x = TN.sumy1me), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "yellow") + 
+      stat_smooth(aes(y = dens.change, x = TN.sumy1me), method = "gam", alpha = 0.8, size = 1, color = "yellow") + 
+  theme_bw(base_size=18) + 
+  labs(y = "SAV dens.change", x = "TN") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
+  
+    ggplot(data = Rm_SEM.No0 %>% filter(SAVArea.change > 100)) + 
+    stat_summary(aes(y = SAVArea.change, x = Sal.spme), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "cyan3") + 
+    stat_smooth(aes(y = SAVArea.change, x = Sal.spme), method = "gam", alpha = 0.7, size = 1, color = "cyan3") + 
+    stat_summary(aes(y = SAVArea.change, x = Sal.sumy1me), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "yellow") + 
+      stat_smooth(aes(y = SAVArea.change, x = Sal.sumy1me), method = "gam", alpha = 0.7, size = 1, color = "yellow") + 
+      theme_bw(base_size=18) + 
+      labs(y = "SAV Area", x = "Salinity") + 
+      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
+      
+       ggplot(data = Rm_SEM.No0 %>% filter(SAVArea.change < -100)) + 
+    stat_summary(aes(y = SAVArea.change, x = Sal.spme), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "cyan3") + 
+    stat_smooth(aes(y = SAVArea.change, x = Sal.spme), method = "gam", alpha = 0.7, size = 1, color = "cyan3") + 
+    stat_summary(aes(y = SAVArea.change, x = Sal.sumy1me), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "yellow") + 
+      stat_smooth(aes(y = SAVArea.change, x = Sal.sumy1me), method = "gam", alpha = 0.7, size = 1, color = "yellow") + 
+      theme_bw(base_size=18) + 
+      labs(y = "SAV Area", x = "Salinity") + 
+      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
+      
+          ggplot(data = Rm_SEM.No0) + 
+    stat_summary(aes(y = TN.spme, x = Sal.spme), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "cyan3") + 
+    stat_smooth(aes(y = TN.spme, x = Sal.spme), method = "gam", alpha = 0.7, size = 1, color = "cyan3") + 
+    stat_summary(aes(y = TN.spme, x = Sal.sumy1me), fun.data = mean_se, geom = "point", alpha = 0.5, size = 1.2, color = "yellow") + 
+      stat_smooth(aes(y = TN.spme, x = Sal.sumy1me), method = "gam", alpha = 0.7, size = 1, color = "yellow") + 
+      theme_bw(base_size=18) + 
+      labs(y = "TN", x = "Salinity") + 
+      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "")
+
 
 #Loads over time (SubEs)
 ```{r, Loads over time (SubEs)}
