@@ -10,7 +10,7 @@ editor_options:
 
 ```{r load packages, echo=FALSE}
 #devtools::install_github("dill/beyonce")
-library(tidyverse); library(readxl); library(patchwork); library(lme4); library(DHARMa); library(piecewiseSEM); library(nlme); library(performance); library(geomtextpath)
+library(tidyverse); library(readxl); library(patchwork); library(lme4); library(DHARMa); library(piecewiseSEM); library(nlme); library(performance); library(geomtextpath); library(vroom)
 ```
 
 
@@ -19,11 +19,12 @@ library(tidyverse); library(readxl); library(patchwork); library(lme4); library(
 #Baywide SAV cover, Ru Zo in here as well. 
 SAV <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/BaywideSAV_RuZo.csv")
 #Full DF for environmental data (need this for summer temperature plot)
-SAVCommDensWQ_ForPred.with0s = vroom::vroom("/Volumes/savshare2/Current Projects/Predicting-SAV/data/communityDFs/SAVCommDensWQ_ForPredictions.with0s.csv")
-#SEM dataset, Rm_Env w NAs removed 
-#Stations
+LowerBay_Temp = vroom("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/LowerBay_Temp.csv")
+   
+#SEM datasets
+#Mainstem Analysis (Stations)
 Rm_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/Rm_SEM.csv")
-#Subestuaries
+#Subestuaries Analysis
 #RmSubE988_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE988_SEM.csv")
 RmSubE_Env982 <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE_Env982.csv")
 #Flow data
@@ -37,21 +38,6 @@ SE <- function(x) sd(x) / sqrt(length(x)) # Create own function
 
 
 ```{r run this chunk to create some tables}
-SAV_2020 = vroom::vroom("/Volumes/savshare2/Current Projects/Predicting-SAV/data/communityDFs/SAVCommunityDens_AllStations.csv") %>% 
-  group_by(Year) %>% 
-  mutate(Baywide = sum(SAVArea, na.rm = F)) %>% 
-  group_by(SpCluster, Year) %>%
-  summarize(Hectares = sum(SAVArea, na.rm = F), 
-            Baywide = mean(Baywide), 
-            perBay = Hectares/Baywide)
-
-
-SAV_time.tbl_2020 = SAV_2020 %>% group_by(SpCluster) %>%
-  mutate(Change = Hectares - lag(Hectares, n = 1L)) %>% 
-  filter(SpCluster %in% c("Ruppia", "Zostera", "RuZo"))
-
-
-
 SAV_time.tbl = SAV %>% #group_by(Year) %>%
   mutate(RuChange = meanRu - lag(meanRu, n = 1L), 
          ZoChange = meanZo - lag(meanZo, n = 1L), 
@@ -124,10 +110,7 @@ my.ylab = expression(atop(paste("Summer Temperature, "(mean, degree,"C"))))
 eel.thresh = expression(atop(paste("Eelgrass Threshold, "(mean, degree,"C"))))
 
 TempBay = 
-  SAVCommDensWQ_ForPred.with0s %>%
-  filter(SpCluster %in% c("Zostera", "RuZo")) %>% #Mixed zone and Zo zones
-  filter(!year == "1984") %>% ungroup() %>% #outlier year (no sampling done in summer)
-    ggplot(data = .) + 
+    ggplot(data = LowerBay_Temp) + 
     geom_hline(yintercept = 25, linewidth = 10, color = "darkgrey", alpha = .6) +
      geom_smooth(aes(x = year, y = Temp.summe), method = "lm", se = T, color = "black", linewidth = 1, alpha = .7) +
     stat_summary(aes(x = year, y = Temp.summe), color = "darkgrey", fun.data = mean_cl_normal, 
