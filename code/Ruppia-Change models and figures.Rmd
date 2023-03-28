@@ -20,7 +20,6 @@ library(tidyverse); library(readxl); library(patchwork); library(lme4); library(
 SAV <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/BaywideSAV_RuZo.csv")
 #Full DF for environmental data (need this for summer temperature plot)
 LowerBay_Temp = vroom("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/LowerBay_Temp.csv")
-   
 #SEM datasets
 #Mainstem Analysis (Stations)
 Rm_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/Rm_SEM.csv")
@@ -70,38 +69,41 @@ SAV_stability = SAV %>% drop_na() %>% #drop the 1988 NA
 
 ```
 
+```{r Fig 2a Proportional SAV change}
+PropBay <- 
+  ggplot(data = SAV) + 
+  geom_line(aes(x = Year, y = perBayZo, color = "Eelgrass"), linewidth = 2) +
+  geom_line(aes(x = Year, y = perBayRu, color = "Widgeongrass"), linewidth = 2) +
+  scale_colour_manual("", labels = (c("Widgeongrass", "Eelgrass")), values=c("#bad793", "#2471a3")) +
+  scale_x_continuous(n.breaks = 8) + 
+  ylim(0, .6)+
+  ylab("Proportion of total Ches. Bay\n areal cover per seagrass") + xlab("") +
+  theme_bw(base_size=14)  +
+  theme(axis.title.y = element_text(size=12),
+        plot.margin = unit(c(1,1,1,1), "cm"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", legend.title = element_blank())
+PropBay
+```
 
-```{r Fig 2a Baewide SAV change,echo=F}
+
+```{r Fig 2b Baewide SAV change,echo=F}
 
 baywideRuZoSAV <- 
   ggplot(data = SAV, aes(x = Year, y = Hectares)) + 
-  stat_summary(data = SAV %>% filter(Zone == "Baywide"), aes(x = Year, y = Hectares/1000), color = "black", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
-  stat_summary(data = SAV, aes(x = year, y = meanRu/1000), color = "#37F918", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
-  stat_summary(data = SAV, aes(x = Year, y = meanZo/1000), color = "#1b53eb", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 1.5) +
-  scale_x_continuous(n.breaks = 10) +
-  ylab("SAV Area \n(K HA)") + xlab("") +
-  theme_bw(base_size=16)  +
-  theme(axis.title.y = element_text(size=14),
-    #    plot.margin = unit(c(1,1,1,1), "cm"),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right", legend.title = element_blank())
+  stat_summary(data = SAV %>% filter(Zone == "Baywide"), aes(x = Year, y = Hectares/1000, color = "All SAV"), fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
+  stat_summary(data = SAV, aes(x = year, y = meanRu/1000, color = "Widgeongrass"), fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
+  stat_summary(data = SAV, aes(x = Year, y = meanZo/1000, color = "Eelgrass"), fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 1.5) +
+  scale_colour_manual("", labels = (c("All SAV", "Eelgrass", "Widgeongrass")), values=c("black", "#2471a3", "#bad793")) +
+  scale_x_continuous(n.breaks = 8) +
+  ylab("Total annual areal cover \n(K HA)") + xlab("") +
+  theme_bw(base_size=14)  +
+  theme(axis.title.y = element_text(size=12),
+        plot.margin = unit(c(1,1,1,1), "cm"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        legend.position = "none", legend.title = element_blank(), legend.text = element_text(lineheight = 5)) 
 baywideRuZoSAV
 ```
 
-```{r Fig 2a Proportional SAV change,echo=F}
-PropBay <- 
-  ggplot(data = SAV) + 
-  stat_summary(aes(x = Year, y = perBayZo),color = "#1b53eb", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2) +
-  stat_summary(aes(x = Year, y = perBayRu), color = "#37F918", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2)+
-  scale_colour_manual(labels = (c("Ruppia", "Zostera")), values=c("#37F918", "#1b53eb")) +
-  scale_x_continuous(n.breaks = 10) + 
-  ylim(0, .6)+
-  ylab("Proportion of Baywide\n SAV Area (per species)") + xlab("") +
-  theme_bw(base_size=16)  +
-  theme(axis.title.y = element_text(size=14),
- #       plot.margin = unit(c(1,1,1,1), "cm"),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right", legend.title = element_blank())
-PropBay
-```
 
 #Temp portion of Fig2a
 ```{r Fig 2a TEMP on right axis SAV change,echo=F}
@@ -111,20 +113,17 @@ eel.thresh = expression(atop(paste("Eelgrass Threshold, "(mean, degree,"C"))))
 
 TempBay = 
     ggplot(data = LowerBay_Temp) + 
-    geom_hline(yintercept = 25, linewidth = 10, color = "darkgrey", alpha = .6) +
-     geom_smooth(aes(x = year, y = Temp.summe), method = "lm", se = T, color = "black", linewidth = 1, alpha = .7) +
-    stat_summary(aes(x = year, y = Temp.summe), color = "darkgrey", fun.data = mean_cl_normal, 
-                 geom = "line", size = 1.5, alpha = .7) +
-    #stat_summary(aes(x = year, y = Temp.summe, ymax = Temp.summax, ymin = Temp.summin), fun.data = mean_se, 
-   #              geom = "pointrange", size = .5, alpha = .4, color = "dark red") + 
-
-    geom_text(aes(y = 25, x = 1992), label = "Eelgrass Temperature Threshold", color = "white", size = 5) +
-    scale_x_continuous(n.breaks = 10) + 
+    geom_hline(yintercept = 25, linewidth = 9, color = "#9d7070", alpha = .5) +
+    # geom_smooth(aes(x = year, y = Temp.summe), method = "lm", se = T, color = "9d7070", linewidth = .4, alpha = .5) +
+    stat_summary(aes(x = year, y = Temp.summe), color = "#9d7070", fun.data = mean_cl_normal, 
+                 geom = "line", size = 1, alpha = .7) +
+  #  geom_text(aes(y = 25, x = 1995), label = "Eelgrass Temperature Threshold", color = "white", size = 4) +
+    scale_x_continuous(breaks = NULL) + 
     scale_y_continuous(position = "right") +
-    ylab(my.ylab) + xlab("") +
-    theme_bw(base_size=16)  +
-  theme(axis.title.y = element_text(size=14),
- #       plot.margin = unit(c(1,1,1,1), "cm"),
+    ylab(expression("Summer Temperature"*~degree*C)) + xlab("") +
+    theme_bw(base_size=14)  +
+  theme(axis.title.y = element_text(size=12),
+        plot.margin = unit(c(1,1,1,1), "cm"),
         panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right", legend.title = element_blank())
 TempBay
 
@@ -136,17 +135,16 @@ TempBay
 ```{r Figure 2c variance}
 VarBae = 
 ggplot(data = SAV_stability) + 
-  stat_summary(aes(x = year, y = long.detredevRu), color = "#37F918", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2.3) +
-  stat_summary(aes(x = Year, y = long.detredevZo), color = "#1b53eb", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2.3) +
-    stat_summary(aes(x = Year, y = long.detredevBae), color = "black", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 1.3, alpha = .8) +
-  geom_hline(yintercept=1, linetype="dashed", color = "red", size = .8) +
-  scale_x_continuous(n.breaks = 10) +
-  labs(y = expression(paste("Deviance around long-term mean \n of total Baywide areal cover")), x = "Year") +
+    geom_hline(yintercept=1, linetype="dashed", color = "red", size = .8) +
+  stat_summary(aes(x = year, y = long.detredevRu), color = "#bad793", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2.3) +
+  stat_summary(aes(x = Year, y = long.detredevZo), color = "#2471a3", fun.data = mean_cl_normal, geom = "line", fun.args = list(mult = 1), size = 2.3) +
+  scale_x_continuous(n.breaks = 8) +
+  labs(y = expression(paste("Deviance from long-term \n mean of total areal cover")), x = "Year") +
   ylim(0,2) +
-  theme_bw(base_size=16)  +
-  theme(axis.title.y = element_text(size=14),
+  theme_bw(base_size=14) +
+  theme(axis.title.y = element_text(size=12),
         plot.margin = unit(c(1,1,1,1), "cm"),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "right", legend.title = element_blank())
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", legend.title = element_blank())
 VarBae
 
 
@@ -162,12 +160,13 @@ SAV_time.tbl
 Fig1patch =  PropBay / baywideRuZoSAV / VarBae + 
     theme(plot.margin = unit(c(1,1,1,1), "cm")) #+
   #plot_annotation(tag_levels = 'A') & 
-  #theme(plot.tag = element_text(size = 8))
-
+ # theme(plot.tag.position = c(0, 1),
+ #       plot.tag = element_text(size = 8, hjust = 0, vjust = 0))
+#8.6x4.75 .../Ruppia Change/Figs 9 x 5.5 legend
 Fig1patch
 
 TempBay
-
+#4.4x3.6
 ```
 
 #SEM for Mainstem Analysis
