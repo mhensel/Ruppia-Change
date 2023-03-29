@@ -17,17 +17,17 @@ library(tidyverse); library(readxl); library(patchwork); library(lme4); library(
 ```{r load in data from R drive}
 #setwd("~/Documents/R projects/Ruppia/Ruppia-Change")
 #Baywide SAV cover, Ru Zo in here as well. 
-SAV <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/BaywideSAV_RuZo.csv")
+SAV <- vroom("./BaywideSAV_RuZo.csv")
 #Full DF for environmental data (need this for summer temperature plot)
-LowerBay_Temp = vroom("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/LowerBay_Temp.csv")
+LowerBay_Temp = vroom("./LowerBay_Temp.csv")
 #SEM datasets
 #Mainstem Analysis (Stations)
-Rm_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/Rm_SEM.csv")
+Rm_SEM <- vroom("./Rm_SEM.csv")
 #Subestuaries Analysis
 #RmSubE988_SEM <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE988_SEM.csv")
-RmSubE_Env982 <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/RmSubE_Env982.csv")
+RmSubE_Env982 <- vroom("./RmSubE_Env982.csv")
 #Flow data
-connodisc <- read.csv("/Volumes/savshare2/Current Projects/Ruppia/Data/RmSEM datasets/conno_discharge.csv")
+connodisc <- vroom("./conno_discharge.csv")
 
 
 
@@ -169,7 +169,7 @@ TempBay
 #4.4x3.6
 ```
 
-#SEM for Mainstem Analysis
+#SEM for Main Channel Analysis
 ```{r Stations SEM}
 #Filter out stations that had 0s three years in a row
 RmSEMZeros = Rm_SEM  %>% group_by(STATION) %>%
